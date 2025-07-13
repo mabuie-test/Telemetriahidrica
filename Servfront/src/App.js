@@ -95,7 +95,6 @@ export default function App() {
           }
         />
 
-        {/* fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
