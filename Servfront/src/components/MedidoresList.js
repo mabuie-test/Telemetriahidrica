@@ -3,6 +3,7 @@ import API from '../services/api';
 
 export default function MedidoresList() {
   const [meds, setMeds] = useState([]);
+  const [clients, setClients] = useState([]);
   const [form, setForm] = useState({
     nome: '',
     cliente: '',
@@ -13,13 +14,25 @@ export default function MedidoresList() {
   const [editingId, setEditingId] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
-  const fetch = () => {
+  // Carregar contadores
+  const fetchMeds = () => {
     API.get('/medidores')
       .then(r => setMeds(r.data))
       .catch(() => setFeedback({ type: 'error', message: 'Erro ao carregar contadores.' }));
   };
-  useEffect(fetch, []);
+  // Carregar clientes para o dropdown
+  const fetchClients = () => {
+    API.get('/users')
+      .then(r => setClients(r.data.filter(u => u.papel === 'cliente')))
+      .catch(() => setFeedback({ type: 'error', message: 'Erro ao carregar clientes.' }));
+  };
 
+  useEffect(() => {
+    fetchMeds();
+    fetchClients();
+  }, []);
+
+  // Criar / atualizar contador
   const submit = async e => {
     e.preventDefault();
     const payload = {
@@ -29,7 +42,9 @@ export default function MedidoresList() {
     };
     if (form.latitude !== '') payload.localizacao.latitude = Number(form.latitude);
     if (form.longitude !== '') payload.localizacao.longitude = Number(form.longitude);
-    if (/^[0-9a-fA-F]{24}$/.test(form.cliente)) payload.cliente = form.cliente;
+    if (/^[0-9a-fA-F]{24}$/.test(form.cliente)) {
+      payload.cliente = form.cliente;
+    }
 
     try {
       if (editingId) {
@@ -41,7 +56,7 @@ export default function MedidoresList() {
         setFeedback({ type: 'success', message: 'Contador criado com sucesso.' });
       }
       setForm({ nome: '', cliente: '', latitude: '', longitude: '', tokenDispositivo: '' });
-      fetch();
+      fetchMeds();
     } catch (err) {
       console.error(err);
       setFeedback({
@@ -51,6 +66,7 @@ export default function MedidoresList() {
     }
   };
 
+  // Preencher form para edição
   const edit = m => {
     setEditingId(m._id);
     setForm({
@@ -63,12 +79,13 @@ export default function MedidoresList() {
     setFeedback(null);
   };
 
+  // Eliminar contador
   const del = async id => {
     if (!window.confirm('Eliminar contador?')) return;
     try {
       await API.delete(`/medidores/${id}`);
       setFeedback({ type: 'success', message: 'Contador eliminado.' });
-      fetch();
+      fetchMeds();
     } catch {
       setFeedback({ type: 'error', message: 'Erro ao eliminar contador.' });
     }
@@ -91,11 +108,17 @@ export default function MedidoresList() {
           onChange={e => setForm({ ...form, nome: e.target.value })}
           required
         />
-        <input
-          placeholder="Cliente ID (24 hex)"
+        <select
           value={form.cliente}
           onChange={e => setForm({ ...form, cliente: e.target.value })}
-        />
+        >
+          <option value="">— Sem Cliente —</option>
+          {clients.map(c => (
+            <option key={c._id} value={c._id}>
+              {c.nome} ({c._id.slice(-6)})
+            </option>
+          ))}
+        </select>
         <input
           placeholder="Latitude"
           value={form.latitude}
