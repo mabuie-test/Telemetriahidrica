@@ -192,3 +192,26 @@ body {
   font-weight: 600;
   font-size: 1.6rem;
 }
+/* ===============================
+   Footer Copyright
+   =============================== */
+
+.copyright {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #555555;
+  background-color: #e6f2ff;
+  padding: 1rem;
+  margin-top: 2rem;
+  border-top: 2px solid #b3d1ff;
+}
+
+.copyright a {
+  color: #0077cc;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.copyright a:hover {
+  text-decoration: underline;
+}
