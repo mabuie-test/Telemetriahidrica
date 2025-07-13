@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';             // ✅ Importar useEffect
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
@@ -15,17 +15,26 @@ import AuditLogs         from './components/AuditLogs';
 import ClienteDashboard  from './components/ClienteDashboard';
 
 export default function App() {
-useEffect(() => {
-   window.onerror = (message, source, lineno, colno, error) => {
-     console.error('Global error: ', message, source, lineno, colno, error);
-     // Podemos usar alert para mostrar imediatamente
-    alert(`Erro: ${message} em ${source}:${lineno}`);
-   };
- }, []);
+  // 👉 useEffect deve estar DENTRO do componente
+  useEffect(() => {
+    window.onerror = (message, source, lineno, colno, error) => {
+      console.error('Global error:', message, source, lineno, colno, error);
+      alert(`Erro detectado: ${message}\nEm: ${source}:${lineno}`);
+    };
+  }, []);
 
-  
   return (
     <HashRouter>
+      {/* Debug banner para confirmar montagem */}
+      <div style={{
+        background: '#0f0', color: '#000',
+        textAlign: 'center',
+        padding: '0.5rem',
+        fontWeight: 'bold'
+      }}>
+        ✅ React iniciou em App.js
+      </div>
+
       <Navbar />
       <Routes>
         <Route path="/login" element={<Login />} />
