@@ -15,6 +15,15 @@ import AuditLogs         from './components/AuditLogs';
 import ClienteDashboard  from './components/ClienteDashboard';
 
 export default function App() {
+useEffect(() => {
+   window.onerror = (message, source, lineno, colno, error) => {
+     console.error('Global error: ', message, source, lineno, colno, error);
+     // Podemos usar alert para mostrar imediatamente
+    alert(`Erro: ${message} em ${source}:${lineno}`);
+   };
+ }, []);
+
+  
   return (
     <HashRouter>
       <Navbar />
