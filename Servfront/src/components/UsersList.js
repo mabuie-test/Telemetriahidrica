@@ -3,6 +3,7 @@ import API from '../services/api';
 
 export default function UsersList() {
   const [users, setUsers] = useState([]);
+  const [meds, setMeds] = useState([]);
   const [form, setForm] = useState({
     nome: '',
     email: '',
@@ -13,28 +14,29 @@ export default function UsersList() {
   const [editingId, setEditingId] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
+  // Carregar utilizadores
   const fetchUsers = () => {
     API.get('/users')
       .then(res => setUsers(res.data))
       .catch(() => setFeedback({ type: 'error', message: 'Erro ao carregar utilizadores.' }));
   };
+  // Carregar medidores para dropdown
+  const fetchMeds = () => {
+    API.get('/medidores')
+      .then(r => setMeds(r.data))
+      .catch(() => setFeedback({ type: 'error', message: 'Erro ao carregar contadores.' }));
+  };
 
-  useEffect(fetchUsers, []);
+  useEffect(() => {
+    fetchUsers();
+    fetchMeds();
+  }, []);
 
+  // Criar / atualizar utilizador
   const handleSubmit = async e => {
     e.preventDefault();
-
-    // Monta o payload
-    const payload = {
-      nome: form.nome,
-      email: form.email,
-      papel: form.papel
-    };
-
-    if (!editingId) {
-      payload.senha = form.senha;
-    }
-    // Inclui medidor só se for string de 24 hex
+    const payload = { nome: form.nome, email: form.email, papel: form.papel };
+    if (!editingId) payload.senha = form.senha;
     if (form.papel === 'cliente' && /^[0-9a-fA-F]{24}$/.test(form.medidor)) {
       payload.medidor = form.medidor;
     }
@@ -59,6 +61,7 @@ export default function UsersList() {
     }
   };
 
+  // Preparar edição
   const handleEdit = u => {
     setEditingId(u._id);
     setForm({
@@ -71,6 +74,7 @@ export default function UsersList() {
     setFeedback(null);
   };
 
+  // Eliminar utilizador
   const handleDelete = async id => {
     if (!window.confirm('Eliminar utilizador?')) return;
     try {
@@ -123,15 +127,19 @@ export default function UsersList() {
           <option value="cliente">Cliente</option>
         </select>
         {form.papel === 'cliente' && (
-          <input
-            placeholder="Medidor ID (24 hex)"
+          <select
             value={form.medidor}
             onChange={e => setForm({ ...form, medidor: e.target.value })}
-          />
+          >
+            <option value="">— Sem Medidor —</option>
+            {meds.map(m => (
+              <option key={m._id} value={m._id}>
+                {m.nome} ({m._id.slice(-6)})
+              </option>
+            ))}
+          </select>
         )}
-        <button type="submit">
-          {editingId ? 'Atualizar' : 'Criar'}
-        </button>
+        <button type="submit">{editingId ? 'Atualizar' : 'Criar'}</button>
         {editingId && (
           <button
             type="button"
