@@ -13,7 +13,6 @@ export default function MedidoresList() {
   const [editingId, setEditingId] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
-  // Carrega contadores
   const fetch = () => {
     API.get('/medidores')
       .then(r => setMeds(r.data))
@@ -21,25 +20,16 @@ export default function MedidoresList() {
   };
   useEffect(fetch, []);
 
-  // Submissão de criar/atualizar
   const submit = async e => {
     e.preventDefault();
-
-    // Monta payload garantindo tipos corretos
     const payload = {
       nome: form.nome,
       tokenDispositivo: form.tokenDispositivo,
       localizacao: {}
     };
-
-    // Converte latitude e longitude para Number se não vazios
     if (form.latitude !== '') payload.localizacao.latitude = Number(form.latitude);
     if (form.longitude !== '') payload.localizacao.longitude = Number(form.longitude);
-
-    // Inclui cliente só se for ObjectId válido
-    if (/^[0-9a-fA-F]{24}$/.test(form.cliente)) {
-      payload.cliente = form.cliente;
-    }
+    if (/^[0-9a-fA-F]{24}$/.test(form.cliente)) payload.cliente = form.cliente;
 
     try {
       if (editingId) {
@@ -50,7 +40,6 @@ export default function MedidoresList() {
         await API.post('/medidores', payload);
         setFeedback({ type: 'success', message: 'Contador criado com sucesso.' });
       }
-      // limpa form e recarrega lista
       setForm({ nome: '', cliente: '', latitude: '', longitude: '', tokenDispositivo: '' });
       fetch();
     } catch (err) {
@@ -62,20 +51,18 @@ export default function MedidoresList() {
     }
   };
 
-  // Inicia edição
   const edit = m => {
     setEditingId(m._id);
     setForm({
       nome: m.nome,
       cliente: m.cliente?._id || '',
-      latitude: m.localizacao.latitude ?? '',
-      longitude: m.localizacao.longitude ?? '',
+      latitude: m.localizacao?.latitude ?? '',
+      longitude: m.localizacao?.longitude ?? '',
       tokenDispositivo: m.tokenDispositivo
     });
     setFeedback(null);
   };
 
-  // Elimina contador
   const del = async id => {
     if (!window.confirm('Eliminar contador?')) return;
     try {
@@ -158,7 +145,7 @@ export default function MedidoresList() {
               <td>{m.nome}</td>
               <td>{m.cliente?.nome || '-'}</td>
               <td>
-                {m.localizacao.latitude ?? '-'}, {m.localizacao.longitude ?? '-'}
+                {m.localizacao?.latitude ?? '-'}, {m.localizacao?.longitude ?? '-'}
               </td>
               <td>{m.tokenDispositivo}</td>
               <td>
