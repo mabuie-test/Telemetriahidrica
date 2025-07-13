@@ -1,7 +1,7 @@
 /* Navbar */
 .navbar {
-  background-color: #ffffff;   /* fundo branco */
-  color: #004d99;              /* texto azul escuro */
+  background-color:#004d99;   /* fundo branco */
+  color:#ffffff;              /* texto azul escuro */
   padding: 1rem;
   display: flex;
   align-items: center;
@@ -18,7 +18,7 @@
 
 /* Links no navbar */
 .nav-right a {
-  color: #004d99;              /* azul escuro */
+  color: #ffffff;              /* branco */
   margin-right: 1rem;
   text-decoration: none;
   font-weight: 500;
@@ -31,7 +31,7 @@
 .nav-right button {
   background: none;
   border: none;
-  color: #004d99;
+  color: #FF0000;
   font-weight: 500;
 }
 
