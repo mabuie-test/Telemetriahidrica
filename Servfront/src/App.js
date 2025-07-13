@@ -97,6 +97,11 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+
+      {/* Footer copyright */}
+      <footer className="copyright">
+        &copy; 2025 Jorge Mabuie. Todos os direitos reservados.
+      </footer>
     </>
   );
 }
