@@ -1,16 +1,16 @@
 const express = require('express');
 const router  = express.Router();
-const { relatorioDiario, relatorioMensal } = require('../controllers/relatoriosController');
+const ctrl    = require('../controllers/relatoriosController');
 const { verificaToken, apenasAdmin, apenasCliente } = require('../middleware/auth');
 
-// Admin pode qualquer; cliente apenas do seu medidor
+// Diário e Mensal (Admin + Cliente limitado ao seu medidor)
 router.get('/diario',
   verificaToken,
   (req, res, next) => {
     if (req.user.papel === 'cliente') req.query.medidorId = req.user.medidor;
     next();
   },
-  relatorioDiario
+  ctrl.relatorioDiario
 );
 
 router.get('/mensal',
@@ -19,7 +19,14 @@ router.get('/mensal',
     if (req.user.papel === 'cliente') req.query.medidorId = req.user.medidor;
     next();
   },
-  relatorioMensal
+  ctrl.relatorioMensal
+);
+
+// **Novo** Consumo Total por Cliente (Apenas Admin)
+router.get('/consumo-clientes',
+  verificaToken,
+  apenasAdmin,
+  ctrl.relatorioClientes
 );
 
 module.exports = router;
