@@ -1,26 +1,26 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import Login from './components/Login';
 import PrivateRoute from './components/PrivateRoute';
+import AdminDashboard from './components/AdminDashboard';
+import ClienteDashboard from './components/ClienteDashboard';
 
-import Login             from './components/Login';
-import AdminDashboard    from './components/AdminDashboard';
-import UsersList         from './components/UsersList';
-import MedidoresList     from './components/MedidoresList';
-import ReadingsIngest    from './components/ReadingsIngest';
-import ReadingsView      from './components/ReadingsView';
-import FailuresAlerts    from './components/FailuresAlerts';
-import ReportsGenerate   from './components/ReportsGenerate';
-import AuditLogs         from './components/AuditLogs';
-import ClienteDashboard  from './components/ClienteDashboard';
+import UsersList from './components/UsersList';
+import MedidoresList from './components/MedidoresList';
+import ReadingsIngest from './components/ReadingsIngest';
+import ReadingsView from './components/ReadingsView';
+import FailuresAlerts from './components/FailuresAlerts';
+import ReportsGenerate from './components/ReportsGenerate';
+import AuditLogs from './components/AuditLogs';
 
 export default function App() {
   return (
-    <HashRouter>
+    <>
       <Navbar />
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+
         <Route
           path="/admin"
           element={
@@ -85,6 +85,7 @@ export default function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/cliente"
           element={
@@ -94,9 +95,9 @@ export default function App() {
           }
         />
 
-        {/* fallback route */}
+        {/* fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </HashRouter>
+    </>
   );
 }
