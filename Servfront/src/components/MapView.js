@@ -3,16 +3,24 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 
 export default function MapView({ leituras, falhas, alertas, medidores = [] }) {
-  // Centrar mapa: primeiro por leitura, senão por medidor, senão fallback
-  const center = leituras.length
-    ? [leituras[0].latitude, leituras[0].longitude]
-    : medidores.length
-      ? [medidores[0].localizacao.latitude, medidores[0].localizacao.longitude]
-      : [-25.9622, 32.5808];
+  // Encontrar o primeiro ponto de leitura com coords
+  const primeiroLeitura = leituras.find(l => l.latitude != null && l.longitude != null);
+
+  // Encontrar o primeiro medidor com coords válidas
+  const primeiroMedidor = medidores.find(
+    m => m.localizacao?.latitude != null && m.localizacao?.longitude != null
+  );
+
+  // Definir centro do mapa
+  const center = primeiroLeitura
+    ? [primeiroLeitura.latitude, primeiroLeitura.longitude]
+    : primeiroMedidor
+      ? [primeiroMedidor.localizacao.latitude, primeiroMedidor.localizacao.longitude]
+      : [-25.9622, 32.5808];  // fallback
 
   return (
     <MapContainer center={center} zoom={13} style={{ height: '400px', width: '100%' }}>
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"} />
 
       {/* Leituras */}
       {leituras.map(l => (
@@ -24,20 +32,22 @@ export default function MapView({ leituras, falhas, alertas, medidores = [] }) {
         </Marker>
       ))}
 
-      {/* Medidores (pontos de instalação) */}
-      {medidores.map(m => (
-        <CircleMarker
-          key={`M-${m._id}`}
-          center={[m.localizacao.latitude, m.localizacao.longitude]}
-          radius={6}
-          pathOptions={{ color: 'blue' }}
-        >
-          <Popup>
-            Medidor: {m.nome}<br/>
-            Cliente: {m.cliente?.nome || '—'}
-          </Popup>
-        </CircleMarker>
-      ))}
+      {/* Medidores com coordenadas */}
+      {medidores
+        .filter(m => m.localizacao?.latitude != null && m.localizacao?.longitude != null)
+        .map(m => (
+          <CircleMarker
+            key={`M-${m._id}`}
+            center={[m.localizacao.latitude, m.localizacao.longitude]}
+            radius={6}
+            pathOptions={{ color: 'blue' }}
+          >
+            <Popup>
+              Medidor: {m.nome}<br/>
+              Cliente: {m.cliente?.nome || '—'}
+            </Popup>
+          </CircleMarker>
+        ))}
 
       {/* Falhas */}
       {falhas.map(f => (
