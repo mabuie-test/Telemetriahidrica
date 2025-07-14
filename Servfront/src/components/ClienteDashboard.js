@@ -17,30 +17,30 @@ export default function ClienteDashboard() {
   useEffect(() => {
     const fetchClient = async () => {
       try {
-        if (!user.medidor) {
+        if (!user.medidor || !user.medidor._id) {
           throw new Error('Nenhum contador associado ao seu perfil.');
         }
 
-        // 1. Detalhes do medidor
-        const rMed = await API.get(`/medidores/${user.medidor}`);
-        setMedidor(rMed.data);
+        // 1. Detalhes do medidor (já populado em user.medidor)
+        setMedidor(user.medidor);
 
         // 2. Consumo diário do cliente
         const rDay = await API.get('/relatorios/diario', {
-          params: { date: hoje, medidorId: user.medidor }
+          params: { date: hoje, medidorId: user.medidor._id }
         });
         setDaily(Array.isArray(rDay.data) ? rDay.data : []);
 
         // 3. Consumo mensal do cliente
         const rMonth = await API.get('/relatorios/mensal', {
-          params: { year: ano, month: mes, medidorId: user.medidor }
+          params: { year: ano, month: mes, medidorId: user.medidor._id }
         });
-        // Somamos apenas consumoDiario (definido como número)
-        const total = (rMonth.data || []).reduce(
-          (sum, rec) => sum + (typeof rec.consumoDiario === 'number' ? rec.consumoDiario : 0),
-          0
-        );
+        const total = (Array.isArray(rMonth.data) ? rMonth.data : [])
+          .reduce((sum, rec) =>
+            sum + (typeof rec.consumoDiario === 'number' ? rec.consumoDiario : 0),
+            0
+          );
         setMonthly(total);
+
       } catch (err) {
         console.error('ClienteDashboard fetch error:', err);
         setError(err.message || 'Erro ao carregar dados do cliente.');
