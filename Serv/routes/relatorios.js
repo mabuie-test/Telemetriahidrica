@@ -3,8 +3,9 @@ const router  = express.Router();
 const ctrl    = require('../controllers/relatoriosController');
 const { verificaToken, apenasAdmin } = require('../middleware/auth');
 
-// Diário (Admin + Cliente limitado ao seu medidor)
-router.get('/diario',
+// Diário (Admin + Cliente)
+router.get(
+  '/diario',
   verificaToken,
   (req, res, next) => {
     if (req.user.papel === 'cliente') req.query.medidorId = req.user.medidor;
@@ -14,7 +15,8 @@ router.get('/diario',
 );
 
 // Semanal (Admin + Cliente)
-router.get('/semanal',
+router.get(
+  '/semanal',
   verificaToken,
   (req, res, next) => {
     if (req.user.papel === 'cliente') req.query.medidorId = req.user.medidor;
@@ -23,8 +25,9 @@ router.get('/semanal',
   ctrl.relatorioSemanal
 );
 
-// Mensal (Admin + Cliente limitado ao seu medidor)
-router.get('/mensal',
+// Mensal (Admin + Cliente)
+router.get(
+  '/mensal',
   verificaToken,
   (req, res, next) => {
     if (req.user.papel === 'cliente') req.query.medidorId = req.user.medidor;
@@ -33,8 +36,9 @@ router.get('/mensal',
   ctrl.relatorioMensal
 );
 
-// Consumo Total por Cliente (Apenas Admin)
-router.get('/consumo-clientes',
+// Consumo Total por Cliente (Admin)
+router.get(
+  '/consumo-clientes',
   verificaToken,
   apenasAdmin,
   ctrl.relatorioClientes
