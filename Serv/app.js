@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express    = require('express');
+const relatoriosRouter = require('./routes/relatorios');
+const auditRouter      = require('./routes/audit');
 const cors       = require('cors');
 const bodyParser = require('body-parser');
 const connectDB  = require('./utils/db');
@@ -18,6 +20,8 @@ app.use('/api/leituras',  require('./routes/leituras'));
 app.use('/api/falhas',    require('./routes/falhas'));
 app.use('/api/alertas',   require('./routes/alertas'));
 app.use('/api/relatorios',require('./routes/relatorios'));
+app.use('/api/relatorios', relatoriosRouter);
+app.use('/api/audit',      auditRouter);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
