@@ -8,16 +8,13 @@ const mongoose = require('mongoose');
 exports.relatorioDiario = async (req, res) => {
   try {
     const { medidorId, date } = req.query;
-    const dataInicio = new Date(date);
-    const dataFim    = new Date(date);
-    dataFim.setDate(dataFim.getDate() + 1);
+    const inicio = new Date(date);
+    const fim    = new Date(date);
+    fim.setDate(fim.getDate() + 1);
 
-    // Monta filtro
-    const filtro = {
-      timestamp: { $gte: dataInicio, $lt: dataFim }
-    };
+    const filtro = { timestamp: { $gte: inicio, $lt: fim } };
     if (medidorId) {
-      filtro.medidorId = mongoose.Types.ObjectId(medidorId);
+      filtro.medidorId = new mongoose.Types.ObjectId(medidorId);
     }
 
     const leituras = await Leitura.find(filtro).sort('timestamp');
@@ -42,15 +39,13 @@ exports.relatorioDiario = async (req, res) => {
 exports.relatorioSemanal = async (req, res) => {
   try {
     const { medidorId, date } = req.query;
-    const dataInicio = new Date(date);
-    const dataFim    = new Date(date);
-    dataFim.setDate(dataFim.getDate() + 7);
+    const inicio = new Date(date);
+    const fim    = new Date(date);
+    fim.setDate(fim.getDate() + 7);
 
-    const filtro = {
-      timestamp: { $gte: dataInicio, $lt: dataFim }
-    };
+    const filtro = { timestamp: { $gte: inicio, $lt: fim } };
     if (medidorId) {
-      filtro.medidorId = mongoose.Types.ObjectId(medidorId);
+      filtro.medidorId = new mongoose.Types.ObjectId(medidorId);
     }
 
     const leituras = await Leitura.find(filtro).sort('timestamp');
@@ -78,11 +73,9 @@ exports.relatorioMensal = async (req, res) => {
     const inicio = new Date(year, month - 1, 1);
     const fim    = new Date(year, month, 1);
 
-    const filtro = {
-      timestamp: { $gte: inicio, $lt: fim }
-    };
+    const filtro = { timestamp: { $gte: inicio, $lt: fim } };
     if (medidorId) {
-      filtro.medidorId = mongoose.Types.ObjectId(medidorId);
+      filtro.medidorId = new mongoose.Types.ObjectId(medidorId);
     }
 
     const leituras = await Leitura.find(filtro).sort('timestamp');
@@ -115,9 +108,9 @@ exports.relatorioClientes = async (req, res) => {
       d1.setDate(d1.getDate() + 1);
       match = { timestamp: { $gte: d0, $lt: d1 } };
     } else if (year && month) {
-      const inicio = new Date(year, month - 1, 1);
-      const fim    = new Date(year, month, 1);
-      match = { timestamp: { $gte: inicio, $lt: fim } };
+      const d0 = new Date(year, month - 1, 1);
+      const d1 = new Date(year, month, 1);
+      match = { timestamp: { $gte: d0, $lt: d1 } };
     }
 
     const pipeline = [
