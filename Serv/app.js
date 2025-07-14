@@ -1,4 +1,5 @@
 require('dotenv').config();
+const usersRouter      = require('./routes/users');
 const express            = require('express');
 const cors               = require('cors');
 const bodyParser         = require('body-parser');
@@ -29,6 +30,7 @@ app.use('/api/falhas',     falhasRouter);
 app.use('/api/alertas',    alertasRouter);
 app.use('/api/relatorios', relatoriosRouter);
 app.use('/api/audit',      auditRouter);
+app.use('/api/users', usersRouter);
 
 // Inicia servidor
 const PORT = process.env.PORT || 3001;
