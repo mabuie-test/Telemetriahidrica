@@ -1,10 +1,18 @@
 require('dotenv').config();
-const express    = require('express');
-const relatoriosRouter = require('./routes/relatorios');
-const auditRouter      = require('./routes/audit');
-const cors       = require('cors');
-const bodyParser = require('body-parser');
-const connectDB  = require('./utils/db');
+const express            = require('express');
+const cors               = require('cors');
+const bodyParser         = require('body-parser');
+const connectDB          = require('./utils/db');
+
+// Importa routers
+const authRouter         = require('./routes/auth');
+const usersRouter        = require('./routes/users');
+const medidoresRouter    = require('./routes/medidores');
+const leiturasRouter     = require('./routes/leituras');
+const falhasRouter       = require('./routes/falhas');
+const alertasRouter      = require('./routes/alertas');
+const relatoriosRouter   = require('./routes/relatorios');
+const auditRouter        = require('./routes/audit');
 
 const app = express();
 connectDB();
@@ -12,18 +20,18 @@ connectDB();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Rotas
-app.use('/api/auth',     require('./routes/auth'));
-app.use('/api/users',    require('./routes/users'));
-app.use('/api/medidores', require('./routes/medidores'));
-app.use('/api/leituras',  require('./routes/leituras'));
-app.use('/api/falhas',    require('./routes/falhas'));
-app.use('/api/alertas',   require('./routes/alertas'));
-app.use('/api/relatorios',require('./routes/relatorios'));
+// Montagem das rotas
+app.use('/api/auth',       authRouter);
+app.use('/api/users',      usersRouter);
+app.use('/api/medidores',  medidoresRouter);
+app.use('/api/leituras',   leiturasRouter);
+app.use('/api/falhas',     falhasRouter);
+app.use('/api/alertas',    alertasRouter);
 app.use('/api/relatorios', relatoriosRouter);
 app.use('/api/audit',      auditRouter);
 
+// Inicia servidor
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🌐 sistema rodando na porta ${PORT}`);
+  console.log(`🌐 Sistema rodando na porta ${PORT}`);
 });
