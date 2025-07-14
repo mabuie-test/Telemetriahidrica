@@ -3,24 +3,21 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 
 export default function MapView({ leituras, falhas, alertas, medidores = [] }) {
-  // Encontrar o primeiro ponto de leitura com coords
+  // Encontrar primeiro ponto válido para centrar
   const primeiroLeitura = leituras.find(l => l.latitude != null && l.longitude != null);
-
-  // Encontrar o primeiro medidor com coords válidas
   const primeiroMedidor = medidores.find(
     m => m.localizacao?.latitude != null && m.localizacao?.longitude != null
   );
 
-  // Definir centro do mapa
   const center = primeiroLeitura
     ? [primeiroLeitura.latitude, primeiroLeitura.longitude]
     : primeiroMedidor
       ? [primeiroMedidor.localizacao.latitude, primeiroMedidor.localizacao.longitude]
-      : [-25.9622, 32.5808];  // fallback
+      : [-25.9622, 32.5808];
 
   return (
     <MapContainer center={center} zoom={13} style={{ height: '400px', width: '100%' }}>
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"} />
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
       {/* Leituras */}
       {leituras.map(l => (
@@ -32,7 +29,7 @@ export default function MapView({ leituras, falhas, alertas, medidores = [] }) {
         </Marker>
       ))}
 
-      {/* Medidores com coordenadas */}
+      {/* Medidores */}
       {medidores
         .filter(m => m.localizacao?.latitude != null && m.localizacao?.longitude != null)
         .map(m => (
