@@ -1,3 +1,5 @@
+// controllers/relatoriosController.js
+
 const Leitura  = require('../models/Leitura');
 const Audit    = require('../models/AuditLog');
 const mongoose = require('mongoose');
@@ -27,7 +29,7 @@ exports.relatorioDiario = async (req, res) => {
 };
 
 /**
- * Relatório Semanal (novidade)
+ * Relatório Semanal
  */
 exports.relatorioSemanal = async (req, res) => {
   try {
@@ -79,7 +81,7 @@ exports.relatorioMensal = async (req, res) => {
 };
 
 /**
- * Consumo por Cliente
+ * Consumo Total por Cliente
  */
 exports.relatorioClientes = async (req, res) => {
   const { date, year, month } = req.query;
