@@ -1,11 +1,9 @@
 const Leitura  = require('../models/Leitura');
-const Medidor  = require('../models/Medidor');
-const User     = require('../models/User');
 const Audit    = require('../models/AuditLog');
 const mongoose = require('mongoose');
 
 /**
- * Relatório Diário de um Medidor (já existente)
+ * Relatório Diário
  */
 exports.relatorioDiario = async (req, res) => {
   const { medidorId, date } = req.query;
@@ -29,7 +27,36 @@ exports.relatorioDiario = async (req, res) => {
 };
 
 /**
- * Relatório Mensal de um Medidor (já existente)
+ * Relatório Semanal (novidade)
+ */
+exports.relatorioSemanal = async (req, res) => {
+  try {
+    const { medidorId, date } = req.query;
+    const dataInicio = new Date(date);
+    const dataFim    = new Date(date);
+    dataFim.setDate(dataFim.getDate() + 7);
+
+    const leituras = await Leitura.find({
+      medidorId: mongoose.Types.ObjectId(medidorId),
+      timestamp: { $gte: dataInicio, $lt: dataFim }
+    }).sort('timestamp');
+
+    await Audit.create({
+      user:   req.user.id,
+      rota:   '/api/relatorios/semanal',
+      metodo: 'relatorioSemanal',
+      params: { medidorId, date }
+    });
+
+    res.json(leituras);
+  } catch (err) {
+    console.error('relatorioSemanal error:', err);
+    res.status(500).json({ error: 'Erro ao gerar relatório semanal.' });
+  }
+};
+
+/**
+ * Relatório Mensal
  */
 exports.relatorioMensal = async (req, res) => {
   const { medidorId, year, month } = req.query;
@@ -52,11 +79,7 @@ exports.relatorioMensal = async (req, res) => {
 };
 
 /**
- * NOVO: Relatório de Consumo total por Cliente
- * GET /api/relatorios/consumo-clientes?date=YYYY-MM-DD&year=&month=
- * - Se query.date fornecida, calcula consumo diário de cada cliente nessa data.
- * - Se query.year+query.month fornecidos, calcula consumo mensal.
- * - Se nenhum, devolve consumo acumulado geral.
+ * Consumo por Cliente
  */
 exports.relatorioClientes = async (req, res) => {
   const { date, year, month } = req.query;
@@ -72,16 +95,14 @@ exports.relatorioClientes = async (req, res) => {
     const fim    = new Date(year, month, 1);
     match = { timestamp: { $gte: inicio, $lt: fim } };
   }
-  // Pipeline de agregação
+
   const pipeline = [
     { $match: match },
-    // Agrupar por medidor
     { $group: {
         _id: '$medidorId',
         totalDiario: { $sum: '$consumoDiario' },
         totalMensal: { $sum: '$consumoMensal' }
     }},
-    // Associar dados do medidor e do cliente
     { $lookup: {
         from: 'medidors',
         localField: '_id',
@@ -96,7 +117,6 @@ exports.relatorioClientes = async (req, res) => {
         as: 'cliente'
     }},
     { $unwind: '$cliente' },
-    // Formatar saída
     { $project: {
         clienteId:    '$cliente._id',
         nomeCliente:  '$cliente.nome',
@@ -108,7 +128,6 @@ exports.relatorioClientes = async (req, res) => {
 
   const resultados = await Leitura.aggregate(pipeline);
 
-  // Auditoria
   await Audit.create({
     user:   req.user.id,
     rota:   '/api/relatorios/consumo-clientes',
