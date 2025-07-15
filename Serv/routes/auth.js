@@ -1,10 +1,17 @@
 const express = require('express');
 const router  = express.Router();
-const ctrl    = require('../controllers/authController');
+const { login, register } = require('../controllers/authController');
 const { verificaToken, apenasAdmin } = require('../middleware/auth');
 
-router.post('/login',  ctrl.login);
-router.post('/register', verificaToken, apenasAdmin, ctrl.register);
-//depois comentar e descomentar a linha acima e o cons{ver...
-//router.post('/register', ctrl.register);
+// POST /api/auth/login
+router.post('/login', login);
+
+// POST /api/auth/register — só Admin pode criar novos usuários
+router.post(
+  '/register',
+  verificaToken,
+  apenasAdmin,
+  register
+);
+
 module.exports = router;
