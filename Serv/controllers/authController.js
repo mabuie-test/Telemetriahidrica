@@ -1,146 +1,35 @@
 const User   = require('../models/User');
 const bcrypt = require('bcrypt');
-const SALT_ROUNDS = 10;
+const jwt    = require('jsonwebtoken');
 
-/**
- * GET /api/users/me
- * Retorna o perfil do utilizador autenticado, sem a senha.
- */
-exports.getProfile = async (req, res) => {
+// POST /api/auth/login
+exports.login = async (req, res) => {
   try {
-    const user = await User
-      .findById(req.user.id)
-      .select('-senha')
-      .populate('medidor');
-
-    if (!user) {
-      return res.status(404).json({ error: 'Utilizador não encontrado.' });
+    const { email, senha } = req.body;
+    const user = await User.findOne({ email });
+    if (!user || !await bcrypt.compare(senha, user.senha)) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
     }
-    res.json(user);
+    const token = jwt.sign({
+      id: user._id,
+      nome: user.nome,
+      papel: user.papel,
+      medidor: user.medidor
+    }, process.env.JWT_SECRET, { expiresIn: '8h' });
+    res.json({ token, nome: user.nome, papel: user.papel });
   } catch (err) {
-    console.error('getProfile error:', err);
-    res.status(500).json({ error: 'Erro ao carregar perfil.' });
+    res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * GET /api/users
- * Lista todos os utilizadores (Admin).
- */
-exports.listUsers = async (req, res) => {
-  try {
-    const users = await User.find().select('-senha').populate('medidor');
-    res.json(users);
-  } catch (err) {
-    console.error('listUsers error:', err);
-    res.status(500).json({ error: 'Erro ao listar utilizadores.' });
-  }
-};
-
-/**
- * GET /api/users/:id
- * Retorna um utilizador por ID (Admin).
- */
-exports.getUser = async (req, res) => {
-  try {
-    const u = await User
-      .findById(req.params.id)
-      .select('-senha')
-      .populate('medidor');
-
-    if (!u) {
-      return res.status(404).json({ error: 'Utilizador não encontrado.' });
-    }
-    res.json(u);
-  } catch (err) {
-    console.error('getUser error:', err);
-    res.status(500).json({ error: 'Erro ao obter utilizador.' });
-  }
-};
-
-/**
- * POST /api/users
- * Cria um novo utilizador (Admin).
- * Faz o hash da senha antes de armazenar.
- */
-exports.createUser = async (req, res) => {
+// POST /api/auth/register (Admin only)
+exports.register = async (req, res) => {
   try {
     const { nome, email, senha, papel, medidor } = req.body;
-
-    // Faz hash da senha
-    const hash = await bcrypt.hash(senha, SALT_ROUNDS);
-
-    const user = new User({
-      nome,
-      email,
-      senha: hash,
-      papel,
-      medidor
-    });
-    await user.save();
-
-    // Retorna o utilizador sem a senha
-    const retorno = await User
-      .findById(user._id)
-      .select('-senha')
-      .populate('medidor');
-
-    res.status(201).json(retorno);
+    const hash = await bcrypt.hash(senha, 10);
+    const user = await User.create({ nome, email, senha: hash, papel, medidor });
+    res.status(201).json({ id: user._id, email: user.email, papel: user.papel });
   } catch (err) {
-    console.error('createUser error:', err);
-    if (err.code === 11000) {
-      return res.status(400).json({ error: 'Email já está em uso.' });
-    }
-    res.status(500).json({ error: 'Erro ao criar utilizador.' });
-  }
-};
-
-/**
- * PUT /api/users/:id
- * Atualiza um utilizador (Admin).
- * Se for fornecida nova senha, faz o hash antes de guardar.
- */
-exports.updateUser = async (req, res) => {
-  try {
-    const { nome, email, senha, papel, medidor } = req.body;
-    const updateData = { nome, email, papel, medidor };
-
-    // Se enviaram nova senha, faz hash
-    if (senha) {
-      updateData.senha = await bcrypt.hash(senha, SALT_ROUNDS);
-    }
-
-    const u = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    )
-    .select('-senha')
-    .populate('medidor');
-
-    if (!u) {
-      return res.status(404).json({ error: 'Utilizador não encontrado.' });
-    }
-    res.json(u);
-  } catch (err) {
-    console.error('updateUser error:', err);
-    res.status(500).json({ error: 'Erro ao atualizar utilizador.' });
-  }
-};
-
-/**
- * DELETE /api/users/:id
- * Elimina um utilizador (Admin).
- */
-exports.deleteUser = async (req, res) => {
-  try {
-    const u = await User.findByIdAndDelete(req.params.id);
-    if (!u) {
-      return res.status(404).json({ error: 'Utilizador não encontrado.' });
-    }
-    res.json({ message: 'Utilizador eliminado com sucesso.' });
-  } catch (err) {
-    console.error('deleteUser error:', err);
-    res.status(500).json({ error: 'Erro ao eliminar utilizador.' });
+    res.status(400).json({ error: err.message });
   }
 };
