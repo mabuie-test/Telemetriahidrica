@@ -7,7 +7,8 @@ const MedidorSchema = new mongoose.Schema({
     latitude:      Number,
     longitude:     Number
   },
-  tokenDispositivo:{ type: String, required: true }
+  tokenDispositivo:{ type: String, required: true },
+  suspended:       { type: Boolean, default: false }   // se true, contador está suspenso
 }, {
   timestamps: true
 });
