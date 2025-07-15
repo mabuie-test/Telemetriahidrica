@@ -1,154 +1,92 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import {
-  getInvoice,
-  listInvoicesHistory,
-  payInvoice,
-  toggleSuspendMedidor
+  listClientInvoices,
+  payInvoice
 } from '../services/api';
 
-export default function Accounting() {
+export default function ClientAccounting() {
   const { user } = useContext(AuthContext);
-  const [year, setYear]         = useState(new Date().getFullYear());
-  const [month, setMonth]       = useState(new Date().getMonth() + 1);
-  const [invoice, setInvoice]   = useState(null);
-  const [history, setHistory]   = useState([]);
-  const [msg, setMsg]           = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [msg, setMsg]           = useState('');
 
-  // Busca a fatura corrente
-  const fetchInvoice = async () => {
+  // 1. Busca as faturas deste cliente
+  const fetchClientInvoices = async () => {
     try {
-      const res = await getInvoice({ year, month });
-      setInvoice(res.data);
+      const res = await listClientInvoices();
+      setInvoices(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
-      setMsg('Erro ao gerar fatura.');
-    }
-  };
-
-  // Busca histórico de faturas/pagamentos
-  const fetchHistory = async () => {
-    try {
-      const res = await listInvoicesHistory();
-      setHistory(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error(err);
-      setMsg('Erro ao carregar histórico.');
+      setMsg('Erro ao carregar suas faturas.');
     }
   };
 
   useEffect(() => {
-    fetchInvoice();
-    fetchHistory();
-  }, [year, month]);
+    fetchClientInvoices();
+  }, []);
 
-  // Pagamento
-  const handlePay = async method => {
-    if (!invoice) return;
+  // 2. Pagar fatura
+  const handlePay = async (invoiceId, method) => {
     try {
-      const res = await payInvoice(invoice._id, method);
-      setInvoice(res.data.invoice);
+      await payInvoice(invoiceId, method);
       setMsg('Pagamento efetuado com sucesso!');
-      fetchHistory();
+      fetchClientInvoices();
     } catch (err) {
       console.error(err);
       setMsg('Falha no pagamento.');
     }
   };
 
-  // Suspender / reativar contador
-  const handleSuspend = async () => {
-    if (!invoice) return;
-    try {
-      const medidorId = user.medidor._id || user.medidor;
-      const res = await toggleSuspendMedidor(medidorId);
-      setMsg(res.data.suspended ? 'Contador suspenso.' : 'Contador reativado.');
-      // Opcional: Atualizar fatura para refletir status
-      fetchInvoice();
-    } catch (err) {
-      console.error(err);
-      setMsg('Falha ao alterar estado do contador.');
-    }
-  };
-
   return (
     <div className="dashboard">
-      <h2>Contabilidade</h2>
+      <h2>Minhas Faturas</h2>
 
       {msg && <p className="info">{msg}</p>}
 
-      <div className="filters">
-        <label>
-          Ano:
-          <input
-            type="number"
-            value={year}
-            onChange={e => setYear(+e.target.value)}
-            style={{ width: '5rem', marginLeft: '0.5rem' }}
-          />
-        </label>
-        <label style={{ marginLeft: '1rem' }}>
-          Mês:
-          <input
-            type="number"
-            value={month}
-            onChange={e => setMonth(+e.target.value)}
-            style={{ width: '3rem', marginLeft: '0.5rem' }}
-          />
-        </label>
-        <button onClick={fetchInvoice} style={{ marginLeft: '1rem' }}>
-          Gerar Fatura
-        </button>
-      </div>
-
-      {invoice && (
-        <div className="card" style={{ marginTop: '1rem' }}>
-          <h3>Fatura {invoice.month}/{invoice.year}</h3>
-          <p>Consumo: {invoice.consumo.toFixed(3)} m³</p>
-          <p>Valor Base: {invoice.valorBase.toFixed(2)} MZN</p>
-          <p>Valor Extra: {invoice.valorExtra.toFixed(2)} MZN</p>
-          <p>Multa: {invoice.multa.toFixed(2)} MZN</p>
-          <p><strong>Total: {invoice.total.toFixed(2)} MZN</strong></p>
-
-          {invoice.status === 'pendente' && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <button onClick={() => handlePay('mpesa')}>Pagar Mpesa</button>
-              <button onClick={() => handlePay('emola')} style={{ marginLeft: '0.5rem' }}>
-                Pagar Emola
-              </button>
-            </div>
-          )}
-
-          {user.papel === 'admin' && (
-            <div style={{ marginTop: '1rem' }}>
-              <button onClick={handleSuspend}>
-                {invoice.status === 'suspenso' ? 'Reativar Contador' : 'Suspender Contador'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <section style={{ marginTop: '2rem' }}>
-        <h3>Histórico de Faturas</h3>
-        <table className="table-list">
-          <thead>
-            <tr>
-              <th>Ano</th><th>Mês</th><th>Status</th><th>Total (MZN)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {history.map((inv) => (
+      <table className="table-list">
+        <thead>
+          <tr>
+            <th>Ano</th>
+            <th>Mês</th>
+            <th>Consumo (m³)</th>
+            <th>Total (MZN)</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoices.length > 0 ? (
+            invoices.map(inv => (
               <tr key={inv._id}>
                 <td>{inv.year}</td>
                 <td>{inv.month}</td>
-                <td>{inv.status}</td>
+                <td>{inv.consumo.toFixed(2)}</td>
                 <td>{inv.total.toFixed(2)}</td>
+                <td>{inv.status}</td>
+                <td>
+                  {inv.status === 'pendente' && (
+                    <>
+                      <button onClick={() => handlePay(inv._id, 'mpesa')}>
+                        Mpesa
+                      </button>
+                      <button
+                        onClick={() => handlePay(inv._id, 'emola')}
+                        style={{ marginLeft: '0.5rem' }}
+                      >
+                        Emola
+                      </button>
+                    </>
+                  )}
+                </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6">Ainda não há faturas para você.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
