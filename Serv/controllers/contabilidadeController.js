@@ -1,8 +1,9 @@
-const mongoose       = require('mongoose');
-const Invoice        = require('../models/Invoice');
-const Payment        = require('../models/Payment');
-const Medidor        = require('../models/Medidor');
-const Leitura        = require('../models/Leitura');
+const mongoose        = require('mongoose');
+const Invoice         = require('../models/Invoice');
+const Payment         = require('../models/Payment');
+const Medidor         = require('../models/Medidor');
+const Leitura         = require('../models/Leitura');
+const Audit           = require('../models/AuditLog');
 const {
   consumoMinimo,
   extra,
@@ -14,15 +15,15 @@ const {
  */
 exports.getOrCreateInvoice = async (req, res) => {
   try {
-    const medidorId = req.user.medidor;  // ou req.query.medidorId para admin
+    const medidorId = req.user.papel === 'admin'
+      ? req.query.medidorId
+      : req.user.medidor;
     const year      = parseInt(req.query.year, 10);
     const month     = parseInt(req.query.month, 10);
 
-    // Define o período
     const inicio = new Date(year, month - 1, 1);
     const fim    = new Date(year, month, 1);
 
-    // 1.1 Soma consumo diário no mês
     const agg = await Leitura.aggregate([
       {
         $match: {
@@ -30,22 +31,15 @@ exports.getOrCreateInvoice = async (req, res) => {
           timestamp: { $gte: inicio, $lt: fim }
         }
       },
-      {
-        $group: {
-          _id: null,
-          totalConsumo: { $sum: '$consumoDiario' }
-        }
-      }
+      { $group: { _id: null, totalConsumo: { $sum: '$consumoDiario' } } }
     ]);
     const consumo = agg[0]?.totalConsumo || 0;
 
-    // 1.2 Busca última fatura pendente (para multa)
     const prevInvoice = await Invoice.findOne({
       medidor: medidorId,
       status: 'pendente'
     }).sort({ year: -1, month: -1 });
 
-    // 1.3 Cálculo de valores
     const valorBase  = consumoMinimo.y;
     const valorExtra = consumo > consumoMinimo.x
       ? (consumo - consumoMinimo.x) * extra.z
@@ -53,12 +47,18 @@ exports.getOrCreateInvoice = async (req, res) => {
     const multa      = prevInvoice ? prevInvoice.total * multaPercent : 0;
     const total      = valorBase + valorExtra + multa;
 
-    // 1.4 Cria ou atualiza a fatura
     const invoice = await Invoice.findOneAndUpdate(
       { medidor: medidorId, year, month },
       { medidor: medidorId, year, month, consumo, valorBase, valorExtra, multa, total },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+
+    await Audit.create({
+      user:   req.user.id,
+      rota:   '/api/contabilidade/invoice',
+      metodo: 'getOrCreateInvoice',
+      params: { medidorId, year, month }
+    });
 
     res.json(invoice);
   } catch (err) {
@@ -79,6 +79,13 @@ exports.listInvoices = async (req, res) => {
     const invs = await Invoice.find({ medidor: medidorId })
       .sort({ year: -1, month: -1 });
 
+    await Audit.create({
+      user:   req.user.id,
+      rota:   '/api/contabilidade/invoices',
+      metodo: 'listInvoices',
+      params: { medidorId }
+    });
+
     res.json(invs);
   } catch (err) {
     console.error('listInvoices error:', err);
@@ -97,9 +104,7 @@ exports.payInvoice = async (req, res) => {
       return res.status(404).json({ error: 'Fatura não encontrada.' });
     }
 
-    // Simula chamada externa de pagamento
     const reference = `${method}-${Date.now()}`;
-
     const payment = await Payment.create({
       invoice: invoiceId,
       method,
@@ -109,6 +114,13 @@ exports.payInvoice = async (req, res) => {
 
     invoice.status = 'paga';
     await invoice.save();
+
+    await Audit.create({
+      user:   req.user.id,
+      rota:   '/api/contabilidade/pay',
+      metodo: 'payInvoice',
+      params: { invoiceId, method, reference }
+    });
 
     res.json({ payment, invoice });
   } catch (err) {
@@ -129,6 +141,14 @@ exports.toggleSuspend = async (req, res) => {
     }
     med.suspended = !med.suspended;
     await med.save();
+
+    await Audit.create({
+      user:   req.user.id,
+      rota:   `/api/contabilidade/medidor/${medidorId}/suspend`,
+      metodo: 'toggleSuspend',
+      params: { medidorId }
+    });
+
     res.json(med);
   } catch (err) {
     console.error('toggleSuspend error:', err);
