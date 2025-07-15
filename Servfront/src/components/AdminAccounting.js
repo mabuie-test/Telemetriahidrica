@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
+  getBillingParams,
   setBillingParams,
   bulkGenerateInvoices,
-  listAllInvoices,
-  getBillingParams
+  listAllInvoices
 } from '../services/api';
 
 export default function AdminAccounting() {
@@ -16,6 +16,7 @@ export default function AdminAccounting() {
   const [month, setMonth]       = useState(new Date().getMonth() + 1);
   const [invoices, setInvoices] = useState([]);
   const [msg, setMsg]           = useState('');
+  const [error, setError]       = useState('');
 
   // 1. Carrega parâmetros ao montar
   useEffect(() => {
@@ -25,53 +26,64 @@ export default function AdminAccounting() {
         setParams(res.data);
       } catch (err) {
         console.error(err);
-        setMsg('Não foi possível carregar parâmetros.');
+        setError('Não foi possível carregar parâmetros.');
       }
     })();
   }, []);
 
-  // 2. Salvar parâmetros alterados
+  // 2. Salvar parâmetros
   const saveParams = async () => {
+    setError('');
+    setMsg('');
     try {
       const res = await setBillingParams(params);
       setParams(res.data);
       setMsg('Parâmetros atualizados com sucesso!');
-    } catch {
-      setMsg('Falha ao atualizar parâmetros.');
+    } catch (err) {
+      console.error(err);
+      setError('Falha ao atualizar parâmetros.');
     }
   };
 
   // 3. Gerar faturas em massa
   const genBulk = async () => {
+    setError('');
+    setMsg('');
     try {
       await bulkGenerateInvoices({ year, month });
       setMsg('Faturas geradas para todos os clientes.');
-      fetchAll();
-    } catch {
-      setMsg('Falha na geração de faturas.');
+      await fetchAll();
+    } catch (err) {
+      console.error(err);
+      setError('Falha na geração de faturas.');
     }
   };
 
   // 4. Buscar todas faturas do mês
   const fetchAll = async () => {
+    setError('');
     try {
       const res = await listAllInvoices({ year, month });
-      setInvoices(res.data);
-    } catch {
-      setMsg('Falha ao carregar faturas.');
+      // garante array
+      setInvoices(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error(err);
+      setError('Falha ao carregar faturas.');
     }
   };
 
   return (
     <div className="dashboard">
       <h2>Contabilidade (Admin)</h2>
+
       {msg && <p className="info">{msg}</p>}
+      {error && <p className="error">{error}</p>}
 
       <section className="card">
         <h3>Parâmetros de Cobrança</h3>
         <div className="form-inline">
           <label>
-            Consumo Mínimo X (m³):
+            X (m³):
             <input
               type="number"
               value={params.consumoMinimo.x}
@@ -88,7 +100,7 @@ export default function AdminAccounting() {
             />
           </label>
           <label>
-            Valor Mínimo Y (MZN):
+            Y (MZN):
             <input
               type="number"
               value={params.consumoMinimo.y}
@@ -105,7 +117,7 @@ export default function AdminAccounting() {
             />
           </label>
           <label>
-            Extra Z (MZN/m³):
+            Z (MZN/m³):
             <input
               type="number"
               value={params.extra.z}
@@ -169,21 +181,22 @@ export default function AdminAccounting() {
           <thead>
             <tr>
               <th>Cliente</th>
-              <th>Consumo (m³)</th>
-              <th>Total (MZN)</th>
+              <th>Consumo</th>
+              <th>Total</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {invoices.map(inv => (
+            {invoices.length > 0 ? invoices.map(inv => (
               <tr key={inv._id}>
-                <td>{inv.medidor.cliente.nome}</td>
-                <td>{inv.consumo.toFixed(2)}</td>
-                <td>{inv.total.toFixed(2)}</td>
-                <td>{inv.status}</td>
+                <td>
+                  {inv.medidor?.cliente?.nome ?? '—'}
+                </td>
+                <td>{(inv.consumo ?? 0).toFixed(2)}</td>
+                <td>{(inv.total ?? 0).toFixed(2)}</td>
+                <td>{inv.status ?? '—'}</td>
               </tr>
-            ))}
-            {invoices.length === 0 && (
+            )) : (
               <tr>
                 <td colSpan="4">Nenhuma fatura encontrada para este período.</td>
               </tr>
