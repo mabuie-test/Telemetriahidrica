@@ -4,24 +4,25 @@ import Navbar from './components/Navbar';
 import Login from './components/Login';
 import PrivateRoute from './components/PrivateRoute';
 
-import AdminDashboard from './components/AdminDashboard';
-import UsersList      from './components/UsersList';
-import MedidoresList  from './components/MedidoresList';
-import ReadingsIngest from './components/ReadingsIngest';
-import ReadingsView   from './components/ReadingsView';
-import FailuresAlerts from './components/FailuresAlerts';
-import ReportsGenerate from './components/ReportsGenerate';
-import AuditLogs      from './components/AuditLogs';
-import Accounting     from './components/Accounting';
+import AdminDashboard    from './components/AdminDashboard';
+import UsersList         from './components/UsersList';
+import MedidoresList     from './components/MedidoresList';
+import ReadingsIngest    from './components/ReadingsIngest';
+import ReadingsView      from './components/ReadingsView';
+import FailuresAlerts    from './components/FailuresAlerts';
+import ReportsGenerate   from './components/ReportsGenerate';
+import AuditLogs         from './components/AuditLogs';
+import AdminAccounting   from './components/AdminAccounting';
 
-import ClienteDashboard from './components/ClienteDashboard';
+import ClienteDashboard  from './components/ClienteDashboard';
+import ClientAccounting  from './components/ClientAccounting';
 
 export default function App() {
   return (
     <>
       <Navbar />
       <Routes>
-        {/* Rota de login */}
+        {/* Login */}
         <Route path="/login" element={<Login />} />
 
         {/* Rotas ADMIN */}
@@ -85,7 +86,7 @@ export default function App() {
           path="/admin/contabilidade"
           element={
             <PrivateRoute papel="admin">
-              <Accounting />
+              <AdminAccounting />
             </PrivateRoute>
           }
         />
@@ -111,16 +112,15 @@ export default function App() {
           path="/contabilidade"
           element={
             <PrivateRoute papel="cliente">
-              <Accounting />
+              <ClientAccounting />
             </PrivateRoute>
           }
         />
 
-        {/* Qualquer outra rota redireciona para login */}
+        {/* Qualquer outra rota → login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
-      {/* Footer */}
       <footer className="copyright">
         &copy; 2025 Jorge Mabuie. Todos os direitos reservados.
       </footer>
