@@ -4,6 +4,12 @@ const cors       = require('cors');
 const bodyParser = require('body-parser');
 const connectDB  = require('./utils/db');
 
+const app = express();
+connectDB();
+
+app.use(cors());
+app.use(bodyParser.json());
+
 // Importa routers
 const authRouter        = require('./routes/auth');
 const usersRouter       = require('./routes/users');
@@ -12,13 +18,8 @@ const leiturasRouter    = require('./routes/leituras');
 const falhasRouter      = require('./routes/falhas');
 const alertasRouter     = require('./routes/alertas');
 const relatoriosRouter  = require('./routes/relatorios');
+const contabRouter      = require('./routes/contabilidade');
 const auditRouter       = require('./routes/audit');
-
-const app = express();
-connectDB();
-
-app.use(cors());
-app.use(bodyParser.json());
 
 // Montagem das rotas
 app.use('/api/auth',       authRouter);
@@ -28,6 +29,7 @@ app.use('/api/leituras',   leiturasRouter);
 app.use('/api/falhas',     falhasRouter);
 app.use('/api/alertas',    alertasRouter);
 app.use('/api/relatorios', relatoriosRouter);
+app.use('/api/contabilidade', contabRouter);  // Rota de Contabilidade
 app.use('/api/audit',      auditRouter);
 
 // Inicia servidor
