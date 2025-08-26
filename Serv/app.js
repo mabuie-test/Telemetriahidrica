@@ -1,4 +1,5 @@
 require('dotenv').config();
+const paymentsRouter = require('./routes/payments');
 const express    = require('express');
 const cors       = require('cors');
 const bodyParser = require('body-parser');
@@ -30,6 +31,8 @@ app.use('/api/alertas',     alertasRouter);
 app.use('/api/relatorios',  relatoriosRouter);
 app.use('/api/contabilidade', contabRouter);
 app.use('/api/audit',       auditRouter);
+app.use('/api/payments', paymentsRouter);
+
 
 // Inicia servidor
 const PORT = process.env.PORT || 3001;
