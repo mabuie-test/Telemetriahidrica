@@ -1,16 +1,16 @@
+// frontend/src/components/ClientAccounting.js
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import {
-  listClientInvoices,
-  payInvoice
-} from '../services/api';
+import { listClientInvoices, payInvoiceMpesa } from '../services/api';
 
 export default function ClientAccounting() {
   const { user } = useContext(AuthContext);
   const [invoices, setInvoices] = useState([]);
-  const [msg, setMsg]           = useState('');
+  const [selected, setSelected] = useState(null);
+  const [phone, setPhone] = useState('');
+  const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // 1. Busca as faturas deste cliente
   const fetchClientInvoices = async () => {
     try {
       const res = await listClientInvoices();
@@ -21,19 +21,26 @@ export default function ClientAccounting() {
     }
   };
 
-  useEffect(() => {
-    fetchClientInvoices();
-  }, []);
+  useEffect(() => { fetchClientInvoices(); }, []);
 
-  // 2. Pagar fatura
-  const handlePay = async (invoiceId, method) => {
+  const startMpesaPay = async () => {
+    setMsg('');
+    if (!selected) { setMsg('Selecione uma fatura.'); return; }
+    if (!phone || !/^\d{8,15}$/.test(phone.replace(/^\+/, ''))) { setMsg('Insira um nº M-Pesa válido (ex: 25884xxxxxxx).'); return; }
+
     try {
-      await payInvoice(invoiceId, method);
-      setMsg('Pagamento efetuado com sucesso!');
-      fetchClientInvoices();
+      setLoading(true);
+      const invoiceId = selected._id;
+      const res = await payInvoiceMpesa(invoiceId, phone);
+      // resposta do backend: confirmação de envio para operadora
+      setMsg(res.data.message || 'Pedido enviado. Confirme no seu telemóvel.');
+      // atualiza lista (ficará pendente até callback confirmar)
+      await fetchClientInvoices();
     } catch (err) {
-      console.error(err);
-      setMsg('Falha no pagamento.');
+      console.error('Erro pagamento:', err.response?.data || err);
+      setMsg(err.response?.data?.error || 'Erro ao iniciar pagamento.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -46,47 +53,47 @@ export default function ClientAccounting() {
       <table className="table-list">
         <thead>
           <tr>
-            <th>Ano</th>
-            <th>Mês</th>
-            <th>Consumo (m³)</th>
-            <th>Total (MZN)</th>
-            <th>Status</th>
-            <th>Ações</th>
+            <th>Ano</th><th>Mês</th><th>Consumo</th><th>Total</th><th>Status</th><th>Ação</th>
           </tr>
         </thead>
         <tbody>
-          {invoices.length > 0 ? (
-            invoices.map(inv => (
-              <tr key={inv._id}>
-                <td>{inv.year}</td>
-                <td>{inv.month}</td>
-                <td>{inv.consumo.toFixed(2)}</td>
-                <td>{inv.total.toFixed(2)}</td>
-                <td>{inv.status}</td>
-                <td>
-                  {inv.status === 'pendente' && (
-                    <>
-                      <button onClick={() => handlePay(inv._id, 'mpesa')}>
-                        Mpesa
-                      </button>
-                      <button
-                        onClick={() => handlePay(inv._id, 'emola')}
-                        style={{ marginLeft: '0.5rem' }}
-                      >
-                        Emola
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6">Ainda não há faturas para você.</td>
+          {invoices.length > 0 ? invoices.map(inv => (
+            <tr key={inv._id}>
+              <td>{inv.year}</td>
+              <td>{inv.month}</td>
+              <td>{(inv.consumo ?? 0).toFixed(2)}</td>
+              <td>{(inv.total ?? 0).toFixed(2)}</td>
+              <td>{inv.status}</td>
+              <td>
+                <button onClick={() => setSelected(inv)}>
+                  {selected && selected._id === inv._id ? 'Selecionada' : 'Selecionar'}
+                </button>
+              </td>
             </tr>
+          )) : (
+            <tr><td colSpan="6">Ainda não há faturas para você.</td></tr>
           )}
         </tbody>
       </table>
+
+      {selected && (
+        <div style={{ marginTop: '1rem' }}>
+          <h3>Pagamento — Fatura: {selected._id}</h3>
+          <p><strong>Valor:</strong> {selected.total?.toFixed(2)} MZN</p>
+
+          <label>Nº M-Pesa (ex: 25884xxxxxxx):</label>
+          <input type="text" value={phone} onChange={e => setPhone(e.target.value)} />
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <button onClick={startMpesaPay} disabled={loading}>
+              {loading ? 'A iniciar...' : 'Pagar via M-Pesa'}
+            </button>
+            <button onClick={() => { setSelected(null); setPhone(''); setMsg(''); }} style={{ marginLeft: '0.5rem' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
