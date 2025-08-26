@@ -1,10 +1,13 @@
 // backend/config/mpesaConfig.js
-require('dotenv').config();
-
 module.exports = {
-  apiKey: process.env.MPESA_API_KEY,            // API Key (string de 32 chars)
-  publicKey: process.env.MPESA_PUBLIC_KEY,      // Chave pública (PEM ou base64) fornecida pela Vodacom
-  serviceProviderCode: process.env.MPESA_SERVICE_CODE, // shortcode / service provider code
-  baseURL: process.env.MPESA_BASE_URL || 'https://sandbox.vm.co.mz/mpesa/ipg/v1', // colocar base correcta do sandbox/live
-  env: process.env.MPESA_ENV || 'sandbox'
+  apiKey: process.env.MPESA_API_KEY || '',
+  publicKey: process.env.MPESA_PUBLIC_KEY || '', // PEM ou base64 raw
+  serviceProviderCode: process.env.MPESA_SERVICE_CODE || '', // shortcode / SP code
+  env: process.env.MPESA_ENV || 'sandbox', // 'sandbox' ou 'production'/'live'
+  // baseURL usado no controller apenas se precisares sobrescrever; Transaction também monta baseUrl
+  // Recomendo deixar vazio e usar Transaction (que monta host+porta)
+  baseURL: process.env.MPESA_BASE_URL || '',
+
+  // Callback URL que registas no portal Vodacom (opcional usar no controller)
+  callbackUrl: process.env.MPESA_CALLBACK_URL || ''
 };
