@@ -58,3 +58,7 @@ export const toggleSuspendMedidor   = id         =>
 export const listAuditLogs          = ()         => API.get('/audit');
 
 export default API;
+
+// pagamentos mpesa
+export const payInvoiceMpesa = (invoiceId, phoneNumber) =>
+  API.post('/payments/mpesa', { invoiceId, phoneNumber });
