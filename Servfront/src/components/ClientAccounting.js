@@ -13,6 +13,7 @@ export default function ClientAccounting() {
   const localInputRef = useRef(null);
 
   const PREFIX = '258'; // prefixo fixo e não editável
+  const MPESA_LOGO = '/mpesa-logo.png'; // coloque a imagem em public/
 
   const fetchClientInvoices = async () => {
     try {
@@ -31,7 +32,7 @@ export default function ClientAccounting() {
     setInvoices(prev => prev.map(inv => inv._id === invoiceId ? { ...inv, status } : inv));
   };
 
-  // Quando clica no botão "Pagar (M-Pesa)" — seleciona a fatura, predefine localPart e foca input
+  // Quando clica no botão/logo "Pagar (M-Pesa)" — seleciona a fatura, predefine localPart e foca input
   const onClickPayMpesa = (inv) => {
     setMsg('');
     setSelected(inv);
@@ -41,7 +42,6 @@ export default function ClientAccounting() {
       const input = localInputRef.current;
       if (input) {
         input.focus();
-        // coloca cursor no fim
         const len = input.value.length;
         input.setSelectionRange(len, len);
       }
@@ -49,28 +49,18 @@ export default function ClientAccounting() {
   };
 
   // Normaliza e valida antes de enviar ao backend
-  // Recebe localPart (editável) e combina com PREFIX quando aplicável.
   const normalizeAndBuildMsisdn = (localRaw) => {
     if (!localRaw) return null;
     let s = String(localRaw).trim();
     if (s.startsWith('+')) s = s.slice(1);
-    // remove tudo menos dígitos
     s = s.replace(/\D/g, '');
 
-    // Caso usuário tenha escrito full number including prefix:
     if (/^258\d{7,9}$/.test(s)) return s;
-
-    // If user wrote local (84xxxxxxx) => prefix
     if (/^84\d{7}$/.test(s)) return `${PREFIX}${s}`;
-
-    // If user wrote only the suffix (e.g. 9 digits starting with 8) -> try prefixing
     if (/^\d{7,9}$/.test(s)) {
-      // prefer common Moz format: if starts with 8 and length 9 -> 84xxxxxxx
       if (/^8\d{7,8}$/.test(s)) return `${PREFIX}${s}`;
-      // otherwise accept raw if within 8-15 digits
       if (/^\d{8,15}$/.test(s)) return s;
     }
-
     return null;
   };
 
@@ -152,15 +142,29 @@ export default function ClientAccounting() {
               <td>{(inv.consumo ?? 0).toFixed(2)}</td>
               <td>{(inv.total ?? 0).toFixed(2)}</td>
               <td>{inv.status}</td>
-              <td>
+              <td style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {inv.status === 'pendente' ? (
                   <>
+                    {/* Logo clicável nas ações (onde antes estava o botão-com-imagem) */}
+                    <img
+                      src={MPESA_LOGO}
+                      alt="Pagar com M-Pesa"
+                      className="action-mpesa-logo"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onClickPayMpesa(inv)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClickPayMpesa(inv); }}
+                      title="Pagar via M-Pesa"
+                      style={{ cursor: 'pointer' }}
+                    />
+
+                    {/* Texto botão para seleção (mantém acessibilidade) */}
                     <button
                       onClick={() => onClickPayMpesa(inv)}
                       disabled={!!loadingMap[inv._id]}
                       title="Pagar via M-Pesa"
-                         >
-              <img src="/mpesa-logo.png" alt="M-Pesa" className="mpesa-logo" />
+                    >
+                      Pagar (M-Pesa)
                     </button>
 
                     <button
@@ -191,10 +195,10 @@ export default function ClientAccounting() {
           <p><strong>Valor:</strong> {selected.total?.toFixed(2)} MZN</p>
 
           <div className="payment-row">
-            <label className="payment-label"></label>
+            <label className="payment-label">Prefixo:</label>
             <input className="payment-prefix" type="text" value={PREFIX} disabled />
 
-            <label className="payment-label"></label>
+            <label className="payment-label">Número local:</label>
             <input
               ref={localInputRef}
               className="payment-local"
@@ -210,9 +214,8 @@ export default function ClientAccounting() {
               className="mpesa-btn"
               onClick={startMpesaPay}
               disabled={!!loadingMap[selected._id]}
-              title="Enviar"
             >
-                 <span>{loadingMap[selected._id] ? 'A iniciar...' : 'Pagar via M-Pesa'}</span>
+              {loadingMap[selected._id] ? 'A iniciar...' : 'Confirmar pagamento M-Pesa'}
             </button>
 
             <button
