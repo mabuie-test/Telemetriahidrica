@@ -159,8 +159,8 @@ export default function ClientAccounting() {
                       onClick={() => onClickPayMpesa(inv)}
                       disabled={!!loadingMap[inv._id]}
                       title="Pagar via M-Pesa"
-                    >
-                      Pagar (M-Pesa)
+                         >
+              <img src="/mpesa-logo.png" alt="M-Pesa" className="mpesa-logo" />
                     </button>
 
                     <button
@@ -191,10 +191,10 @@ export default function ClientAccounting() {
           <p><strong>Valor:</strong> {selected.total?.toFixed(2)} MZN</p>
 
           <div className="payment-row">
-            <label className="payment-label">Prefixo:</label>
+            <label className="payment-label"></label>
             <input className="payment-prefix" type="text" value={PREFIX} disabled />
 
-            <label className="payment-label">Número local:</label>
+            <label className="payment-label"></label>
             <input
               ref={localInputRef}
               className="payment-local"
