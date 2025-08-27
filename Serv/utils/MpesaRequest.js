@@ -23,7 +23,7 @@ class MpesaRequest {
     try {
       const resp = await axios.post(url, params, {
         headers: this._headers(params),
-        timeout: 20000
+        timeout: 120000
       });
       return resp.data;
     } catch (ex) {
