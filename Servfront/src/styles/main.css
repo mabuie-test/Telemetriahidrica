@@ -215,3 +215,17 @@ body {
 .copyright a:hover {
   text-decoration: underline;
 }
+/* botão imagem M-Pesa */
+.mpesa-btn img {
+  height: 32px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+}
+
+.mpesa-btn[disabled] img {
+  opacity: 0.5;
+  filter: none;
+  cursor: default;
+}
