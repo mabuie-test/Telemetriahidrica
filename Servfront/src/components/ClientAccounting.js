@@ -7,10 +7,12 @@ export default function ClientAccounting() {
   const { user } = useContext(AuthContext);
   const [invoices, setInvoices] = useState([]);
   const [selected, setSelected] = useState(null); // invoice object selecionada para pagamento
-  const [phone, setPhone] = useState('');
+  const [localPart, setLocalPart] = useState(''); // parte editável do número (ex: 84xxxxxxx)
   const [msg, setMsg] = useState('');
   const [loadingMap, setLoadingMap] = useState({}); // loading por invoiceId
-  const phoneInputRef = useRef(null);
+  const localInputRef = useRef(null);
+
+  const PREFIX = '258'; // prefixo fixo e não editável
 
   const fetchClientInvoices = async () => {
     try {
@@ -29,17 +31,17 @@ export default function ClientAccounting() {
     setInvoices(prev => prev.map(inv => inv._id === invoiceId ? { ...inv, status } : inv));
   };
 
-  // Quando clica no botão "Pagar (M-Pesa)" — seleciona a fatura, predefine 258 e foca input
+  // Quando clica no botão "Pagar (M-Pesa)" — seleciona a fatura, predefine localPart e foca input
   const onClickPayMpesa = (inv) => {
     setMsg('');
     setSelected(inv);
-    // predefine prefixo 258: utilizador só escreve o resto
-    setPhone('258');
-    // focus após render e coloca cursor no fim
+    // prefaz a parte local como "84" para facilitar se utilizador escrever só resto
+    setLocalPart('84');
     setTimeout(() => {
-      const input = phoneInputRef.current;
+      const input = localInputRef.current;
       if (input) {
         input.focus();
+        // coloca cursor no fim
         const len = input.value.length;
         input.setSelectionRange(len, len);
       }
@@ -47,18 +49,28 @@ export default function ClientAccounting() {
   };
 
   // Normaliza e valida antes de enviar ao backend
-  const normalizeAndBuildMsisdn = (raw) => {
-    if (!raw) return null;
-    let s = String(raw).trim();
+  // Recebe localPart (editável) e combina com PREFIX quando aplicável.
+  const normalizeAndBuildMsisdn = (localRaw) => {
+    if (!localRaw) return null;
+    let s = String(localRaw).trim();
     if (s.startsWith('+')) s = s.slice(1);
     // remove tudo menos dígitos
     s = s.replace(/\D/g, '');
-    // Se o utilizador inseriu apenas local (84xxxxxxx — 9 dígitos) -> prefixa 258
-    if (/^84\d{7}$/.test(s)) return `258${s}`;
-    // Se inseriu já 258... (11 dígitos) -> usa
+
+    // Caso usuário tenha escrito full number including prefix:
     if (/^258\d{7,9}$/.test(s)) return s;
-    // se já for entre 8 e 15 dígitos e começar com outro código, aceita (cautela)
-    if (/^\d{8,15}$/.test(s)) return s;
+
+    // If user wrote local (84xxxxxxx) => prefix
+    if (/^84\d{7}$/.test(s)) return `${PREFIX}${s}`;
+
+    // If user wrote only the suffix (e.g. 9 digits starting with 8) -> try prefixing
+    if (/^\d{7,9}$/.test(s)) {
+      // prefer common Moz format: if starts with 8 and length 9 -> 84xxxxxxx
+      if (/^8\d{7,8}$/.test(s)) return `${PREFIX}${s}`;
+      // otherwise accept raw if within 8-15 digits
+      if (/^\d{8,15}$/.test(s)) return s;
+    }
+
     return null;
   };
 
@@ -66,10 +78,10 @@ export default function ClientAccounting() {
     setMsg('');
     if (!selected) { setMsg('Selecione uma fatura para pagar.'); return; }
 
-    const msisdn = normalizeAndBuildMsisdn(phone);
+    const msisdn = normalizeAndBuildMsisdn(localPart);
     if (!msisdn) {
-      setMsg('Número inválido. Ex.: 84xxxxxxx ou 25884xxxxxxx.');
-      phoneInputRef.current?.focus();
+      setMsg('Número inválido. Escreva ex.: 84xxxxxxx (o prefixo 258 é automático).');
+      localInputRef.current?.focus();
       return;
     }
 
@@ -78,21 +90,18 @@ export default function ClientAccounting() {
       const invoiceId = selected._id;
       const res = await payInvoiceMpesa(invoiceId, msisdn);
 
-      // mensagem amigável ao utilizador
       setMsg(res.data?.message || 'Pedido enviado. Confirme no seu telemóvel.');
 
-      // tentar detectar código de resposta na resposta direta
-      const raw = res.data?.raw || res.data?.response || res.data;
+      const raw = res.data?.raw || res.data;
       const code = raw?.output_ResponseCode || raw?.responseCode || raw?.status || raw?.code;
 
-      // Se a operadora devolveu INS-0 no initiate → sucesso imediato
+      // Se operadora devolveu INS-0 no initiate → sucesso imediato
       if (typeof code === 'string' && code.startsWith('INS-0')) {
-        // marca localmente como paga e remove o painel/botão
         updateInvoiceStatusLocal(invoiceId, 'paga');
         setSelected(null);
-        setPhone('');
+        setLocalPart('');
       } else {
-        // senão, atualiza a lista (ficará pendente até callback confirmar)
+        // aguarda callback → atualiza lista para refletir pendente
         await fetchClientInvoices();
       }
     } catch (err) {
@@ -177,32 +186,39 @@ export default function ClientAccounting() {
 
       {/* Painel de pagamento que aparece quando selected != null */}
       {selected && (
-        <div className="card" style={{ marginTop: '1rem' }}>
+        <div className="card payment-panel" style={{ marginTop: '1rem' }}>
           <h3>Pagamento — Fatura: {selected._id}</h3>
           <p><strong>Valor:</strong> {selected.total?.toFixed(2)} MZN</p>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <label style={{ minWidth: '160px' }}>Nº M-Pesa (prefixo automático 258):</label>
+          <div className="payment-row">
+            <label className="payment-label">Prefixo:</label>
+            <input className="payment-prefix" type="text" value={PREFIX} disabled />
+
+            <label className="payment-label">Número local:</label>
             <input
-              ref={phoneInputRef}
+              ref={localInputRef}
+              className="payment-local"
               type="text"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="25884xxxxxxx"
-              style={{ padding: '0.4rem', width: '220px' }}
+              value={localPart}
+              onChange={e => setLocalPart(e.target.value)}
+              placeholder="84xxxxxxx"
               inputMode="numeric"
               pattern="\d*"
             />
+
             <button
+              className="mpesa-btn"
               onClick={startMpesaPay}
               disabled={!!loadingMap[selected._id]}
+              title="Pagar via M-Pesa"
             >
-              {loadingMap[selected._id] ? 'A iniciar...' : 'Confirmar pagamento M-Pesa'}
+              <img src="/mpesa-logo.png" alt="M-Pesa" className="mpesa-logo" />
+              <span>{loadingMap[selected._id] ? 'A iniciar...' : 'Pagar via M-Pesa'}</span>
             </button>
 
             <button
-              onClick={() => { setSelected(null); setPhone(''); setMsg(''); }}
-              style={{ marginLeft: '0.5rem' }}
+              className="btn-cancel"
+              onClick={() => { setSelected(null); setLocalPart(''); setMsg(''); }}
             >
               Cancelar
             </button>
