@@ -1,15 +1,18 @@
 // frontend/src/components/ClientAccounting.js
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { listClientInvoices, payInvoiceMpesa } from '../services/api';
+import {
+  listClientInvoices,
+  payInvoice,
+  payInvoiceMpesa
+} from '../services/api';
 
 export default function ClientAccounting() {
   const { user } = useContext(AuthContext);
   const [invoices, setInvoices] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [phone, setPhone] = useState('');
-  const [msg, setMsg] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [msg, setMsg]           = useState('');
+  const [rawResp, setRawResp]   = useState(null);
+  const [loading, setLoading]   = useState(false);
 
   const fetchClientInvoices = async () => {
     try {
@@ -21,32 +24,48 @@ export default function ClientAccounting() {
     }
   };
 
-  useEffect(() => { fetchClientInvoices(); }, []);
+  useEffect(() => {
+    fetchClientInvoices();
+  }, []);
 
-  const startMpesaPay = async () => {
+  // Pagar (mpesa) — pedimos número via prompt (simples) e mostramos raw response
+  const handleMpesa = async (invoiceId) => {
     setMsg('');
-    if (!selected) { setMsg('Selecione uma fatura.'); return; }
-
-    // valida formato básico: aceita com ou sem '+', entre 8 e 15 dígitos
-    const cleaned = phone.replace(/^\+/, '').replace(/\s+/g, '');
-    if (!cleaned || !/^\d{8,15}$/.test(cleaned)) {
-      setMsg('Insira um nº M-Pesa válido (ex: 25884xxxxxxx).');
+    setRawResp(null);
+    const phone = window.prompt('Digite o número M-Pesa com código do país (ex: 25884XXXXXXX):');
+    if (!phone) return;
+    // validação simples
+    const cleaned = phone.replace(/\s+/g,'');
+    if (!/^\+?\d{8,15}$/.test(cleaned)) {
+      setMsg('Número inválido. Use formato: 25884XXXXXXX');
       return;
     }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const invoiceId = selected._id;
       const res = await payInvoiceMpesa(invoiceId, cleaned);
-      // resposta do backend: confirmação de envio para operadora
-      setMsg(res.data.message || 'Pedido enviado. Confirme no seu telemóvel.');
-      // atualiza lista (ficará pendente até callback confirmar)
+      // mostra mensagem e raw (da vodacom)
+      setMsg(res.data?.message || 'Pedido enviado. Confirme no seu telemóvel.');
+      setRawResp(res.data?.raw || res.data?.details || res.data);
+      // recarrega faturas (podemos ver estado pendente)
       await fetchClientInvoices();
     } catch (err) {
-      console.error('Erro pagamento:', err.response?.data || err);
-      setMsg(err.response?.data?.error || 'Erro ao iniciar pagamento.');
+      console.error('payMpesa error', err);
+      setMsg(err.response?.data?.error || 'Falha ao iniciar pagamento.');
+      setRawResp(err.response?.data?.details || err.response?.data || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Pagar via métodos existentes (mpesa via /contabilidade/pay etc)
+  const handlePay = async (invoiceId, method) => {
+    try {
+      await payInvoice(invoiceId, method);
+      setMsg('Pagamento efetuado com sucesso!');
+      fetchClientInvoices();
+    } catch (err) {
+      console.error(err);
+      setMsg('Falha no pagamento.');
     }
   };
 
@@ -55,57 +74,62 @@ export default function ClientAccounting() {
       <h2>Minhas Faturas</h2>
 
       {msg && <p className="info">{msg}</p>}
+      {rawResp && (
+        <section className="card" style={{ marginBottom: '1rem' }}>
+          <h4>Resposta Operadora (raw)</h4>
+          <pre style={{ whiteSpace: 'pre-wrap', maxHeight: '200px', overflow: 'auto' }}>
+            {typeof rawResp === 'string' ? rawResp : JSON.stringify(rawResp, null, 2)}
+          </pre>
+        </section>
+      )}
 
       <table className="table-list">
         <thead>
           <tr>
-            <th>Ano</th><th>Mês</th><th>Consumo</th><th>Total</th><th>Status</th><th>Ação</th>
+            <th>Ano</th>
+            <th>Mês</th>
+            <th>Consumo (m³)</th>
+            <th>Total (MZN)</th>
+            <th>Status</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
-          {invoices.length > 0 ? invoices.map(inv => (
-            <tr key={inv._id}>
-              <td>{inv.year}</td>
-              <td>{inv.month}</td>
-              <td>{(inv.consumo ?? 0).toFixed(2)}</td>
-              <td>{(inv.total ?? 0).toFixed(2)}</td>
-              <td>{inv.status}</td>
-              <td>
-                <button onClick={() => setSelected(inv)}>
-                  {selected && selected._id === inv._id ? 'Selecionada' : 'Selecionar'}
-                </button>
-              </td>
+          {invoices.length > 0 ? (
+            invoices.map(inv => (
+              <tr key={inv._id}>
+                <td>{inv.year}</td>
+                <td>{inv.month}</td>
+                <td>{(inv.consumo ?? 0).toFixed(2)}</td>
+                <td>{(inv.total ?? 0).toFixed(2)}</td>
+                <td>{inv.status}</td>
+                <td>
+                  {inv.status === 'pendente' && (
+                    <>
+                      <button onClick={() => handleMpesa(inv._id)} disabled={loading}>
+                        Pagar (M-Pesa)
+                      </button>
+                      <button onClick={() => handlePay(inv._id, 'mpesa')} style={{ marginLeft: '0.5rem' }}>
+                        Mpesa (marcar)
+                      </button>
+                      <button
+                        onClick={() => handlePay(inv._id, 'emola')}
+                        style={{ marginLeft: '0.5rem' }}
+                      >
+                        Emola
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6">Ainda não há faturas para você.</td>
             </tr>
-          )) : (
-            <tr><td colSpan="6">Ainda não há faturas para você.</td></tr>
           )}
         </tbody>
       </table>
-
-      {selected && (
-        <div style={{ marginTop: '1rem' }}>
-          <h3>Pagamento — Fatura: {selected._id}</h3>
-          <p><strong>Valor:</strong> {selected.total?.toFixed(2)} MZN</p>
-
-          <label>Nº M-Pesa (ex: 25884xxxxxxx):</label>
-          <input
-            type="text"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="25884xxxxxxx"
-            style={{ marginLeft: '0.5rem' }}
-          />
-
-          <div style={{ marginTop: '0.5rem' }}>
-            <button onClick={startMpesaPay} disabled={loading}>
-              {loading ? 'A iniciar...' : 'Pagar via M-Pesa'}
-            </button>
-            <button onClick={() => { setSelected(null); setPhone(''); setMsg(''); }} style={{ marginLeft: '0.5rem' }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
