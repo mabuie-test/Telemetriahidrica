@@ -24,13 +24,26 @@ export default function ClientAccounting() {
 
   useEffect(() => { fetchClientInvoices(); }, []);
 
-  // Quando clica no botão "Pagar (M-Pesa)" — seleciona a fatura e foca input
+  // Atualiza uma fatura no estado local (usado para marcar 'paga' imediatamente)
+  const updateInvoiceStatusLocal = (invoiceId, status) => {
+    setInvoices(prev => prev.map(inv => inv._id === invoiceId ? { ...inv, status } : inv));
+  };
+
+  // Quando clica no botão "Pagar (M-Pesa)" — seleciona a fatura, predefine 258 e foca input
   const onClickPayMpesa = (inv) => {
     setMsg('');
     setSelected(inv);
-    setPhone(''); // limpa input para que usuario escreva
-    // focus após render
-    setTimeout(() => phoneInputRef.current?.focus(), 50);
+    // predefine prefixo 258: utilizador só escreve o resto
+    setPhone('258');
+    // focus após render e coloca cursor no fim
+    setTimeout(() => {
+      const input = phoneInputRef.current;
+      if (input) {
+        input.focus();
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
+      }
+    }, 60);
   };
 
   // Normaliza e valida antes de enviar ao backend
@@ -43,7 +56,7 @@ export default function ClientAccounting() {
     // Se o utilizador inseriu apenas local (84xxxxxxx — 9 dígitos) -> prefixa 258
     if (/^84\d{7}$/.test(s)) return `258${s}`;
     // Se inseriu já 258... (11 dígitos) -> usa
-    if (/^258\d{8,9}$/.test(s) || /^258\d{7,9}$/.test(s)) return s;
+    if (/^258\d{7,9}$/.test(s)) return s;
     // se já for entre 8 e 15 dígitos e começar com outro código, aceita (cautela)
     if (/^\d{8,15}$/.test(s)) return s;
     return null;
@@ -64,11 +77,24 @@ export default function ClientAccounting() {
       setLoadingMap(prev => ({ ...prev, [selected._id]: true }));
       const invoiceId = selected._id;
       const res = await payInvoiceMpesa(invoiceId, msisdn);
+
+      // mensagem amigável ao utilizador
       setMsg(res.data?.message || 'Pedido enviado. Confirme no seu telemóvel.');
-      // atualiza lista (ficará pendente até callback confirmar)
-      await fetchClientInvoices();
-      // mantemos a seleção para o utilizador ver o estado; podes limpar se preferires:
-      // setSelected(null); setPhone('');
+
+      // tentar detectar código de resposta na resposta direta
+      const raw = res.data?.raw || res.data?.response || res.data;
+      const code = raw?.output_ResponseCode || raw?.responseCode || raw?.status || raw?.code;
+
+      // Se a operadora devolveu INS-0 no initiate → sucesso imediato
+      if (typeof code === 'string' && code.startsWith('INS-0')) {
+        // marca localmente como paga e remove o painel/botão
+        updateInvoiceStatusLocal(invoiceId, 'paga');
+        setSelected(null);
+        setPhone('');
+      } else {
+        // senão, atualiza a lista (ficará pendente até callback confirmar)
+        await fetchClientInvoices();
+      }
     } catch (err) {
       console.error('Erro pagamento M-Pesa:', err?.response?.data || err);
       setMsg(err?.response?.data?.error || err?.message || 'Erro ao iniciar pagamento.');
@@ -156,14 +182,16 @@ export default function ClientAccounting() {
           <p><strong>Valor:</strong> {selected.total?.toFixed(2)} MZN</p>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <label style={{ minWidth: '160px' }}>Nº M-Pesa (ex: 84xxxxxxx ou 25884xxxxxxx):</label>
+            <label style={{ minWidth: '160px' }}>Nº M-Pesa (prefixo automático 258):</label>
             <input
               ref={phoneInputRef}
               type="text"
               value={phone}
               onChange={e => setPhone(e.target.value)}
-              placeholder="84xxxxxxx ou 25884xxxxxxx"
+              placeholder="25884xxxxxxx"
               style={{ padding: '0.4rem', width: '220px' }}
+              inputMode="numeric"
+              pattern="\d*"
             />
             <button
               onClick={startMpesaPay}
