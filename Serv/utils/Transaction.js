@@ -6,17 +6,21 @@ class Transaction {
   constructor(apiKey, publicKey, environment = 'sandbox') {
     this.apiKey = apiKey;
     this.publicKey = publicKey;
-    this.env = environment;
-    // escolhe host conforme ambiente
-    this.baseHost = (environment === 'production' || config.env === 'live') ? 'api.vm.co.mz' : 'api.sandbox.vm.co.mz';
-    // porta 18352 usada no exemplo para C2B singleStage
-    this.baseUrl = `https://${this.baseHost}:18352`;
+    this.env = environment || config.env || 'sandbox';
+
+    // escolhe host conforme ambiente (sandbox vs production)
+    this.baseHost = (this.env === 'production' || this.env === 'live') ? 'api.vm.co.mz' : 'api.sandbox.vm.co.mz';
+
+    // Note: portas diferentes para endpoints diferentes (conforme documentação)
+    this.c2bPort    = process.env.MPESA_C2B_PORT || '18352';
+    this.statusPort = process.env.MPESA_STATUS_PORT || '18353';
+    // cria request helper (axios com timeout & bearer)
     this.request = new MpesaRequest(apiKey, publicKey);
   }
 
+  // c2b single stage
   async c2b(data) {
-    // data: { value, client_number, agent_id, transaction_reference, third_party_reference }
-    const url = `${this.baseUrl}/ipg/v1x/c2bPayment/singleStage/`;
+    const url = `https://${this.baseHost}:${this.c2bPort}/ipg/v1x/c2bPayment/singleStage/`;
     const params = {
       input_Amount: data.value,
       input_CustomerMSISDN: data.client_number,
@@ -28,7 +32,19 @@ class Transaction {
     return resp;
   }
 
-  // outros métodos (b2c, b2b, status, reversal) podem ser adicionados depois
+  // query transaction status (probe)
+  async status({ transaction_id, third_party_reference, agent_id }) {
+    const url = `https://${this.baseHost}:${this.statusPort}/ipg/v1x/queryTransactionStatus/`;
+    const params = {
+      input_QueryReference: transaction_id || third_party_reference,
+      input_ThirdPartyReference: third_party_reference,
+      input_ServiceProviderCode: agent_id || config.serviceProviderCode
+    };
+    const resp = await this.request.get(url, params);
+    return resp;
+  }
+
+  // Expor outros endpoints se necessário (b2c, b2b, reversal) - podem ser adicionados mais tarde.
 }
 
 module.exports = Transaction;
