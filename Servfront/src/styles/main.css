@@ -289,3 +289,23 @@ body {
   cursor: pointer;
   margin-left: 0.25rem;
 }
+/* Logo na coluna de ações */
+.action-mpesa-logo {
+  width: 34px;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.action-mpesa-logo:hover,
+.action-mpesa-logo:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+  outline: none;
+}
+
+/* mantém os estilos do painel conforme antes */
+.payment-panel { /* ... já definido anteriormente ... */ }
+.payment-row { /* ... */ }
+.mpesa-btn { /* ... */ }
