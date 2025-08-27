@@ -50,7 +50,7 @@ class MpesaRequest {
     try {
       const resp = await axios.put(url, params, {
         headers: this._headers(params),
-        timeout: 120000
+        timeout: 20000
       });
       return resp.data;
     } catch (ex) {
