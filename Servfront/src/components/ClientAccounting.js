@@ -210,10 +210,9 @@ export default function ClientAccounting() {
               className="mpesa-btn"
               onClick={startMpesaPay}
               disabled={!!loadingMap[selected._id]}
-              title="Pagar via M-Pesa"
+              title="Enviar"
             >
-              <img src="/mpesa-logo.png" alt="M-Pesa" className="mpesa-logo" />
-              <span>{loadingMap[selected._id] ? 'A iniciar...' : 'Pagar via M-Pesa'}</span>
+                 <span>{loadingMap[selected._id] ? 'A iniciar...' : 'Pagar via M-Pesa'}</span>
             </button>
 
             <button
