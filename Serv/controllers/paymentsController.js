@@ -25,21 +25,42 @@ function normalizePhone(p) {
   return String(p).replace(/[\s()+-]+/g, '').replace(/^\+/, '');
 }
 
-// Gera referência curta (<=20) usando os primeiros 20 chars do ObjectId
-function makeThirdPartyRef(invoiceId) {
-  return String(invoiceId).substring(0, 20);
+// Gera uma parte aleatória alfa-numérica (maiúscula) com length chars
+function randAlnum(length = 4) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let out = '';
+  const buf = crypto.randomBytes(length);
+  for (let i = 0; i < length; i++) {
+    out += chars[buf[i] % chars.length];
+  }
+  return out;
 }
 
-// Gera transaction_reference com no máximo 20 chars (alfa-numérico, sem símbolos)
+// Gera thirdPartyRef único com máximo 20 chars
+// base: primeiros (20 - suffixLen) chars do invoiceId + suffix (randAlnum)
+function generateThirdPartyRef(invoiceId, suffixLen = 4) {
+  const baseLen = Math.max(1, 20 - suffixLen);
+  const base = String(invoiceId).substring(0, baseLen);
+  const suffix = randAlnum(suffixLen);
+  return (base + suffix).substring(0, 20);
+}
+
+// Gera transaction_reference seguro <=20 chars
 function makeTransactionRef() {
-  const ts = Date.now().toString(36);          // base36 (curto)
-  const rand = Math.random().toString(36).slice(2, 8); // 6 chars
-  let ref = `TX${ts}${rand}`;                  // exemplo: TXk1x9abc...
+  const ts = Date.now().toString(36);
+  const rand = randAlnum(5);
+  let ref = `TX${ts}${rand}`;
   if (ref.length > 20) ref = ref.slice(0, 20);
   return ref;
 }
 
-/* Controller: inicia pagamento M-Pesa */
+function isDuplicateResponse(resp) {
+  const code = String(resp?.output_ResponseCode || resp?.Response?.output_ResponseCode || resp?.responseCode || '').toUpperCase();
+  const desc = String(resp?.output_ResponseDesc || resp?.Response?.output_ResponseDesc || resp?.responseDesc || '').toUpperCase();
+  return code.includes('INS-10') || desc.includes('DUPLICATE');
+}
+
+/* Controller: inicia pagamento M-Pesa com retry único para duplicates */
 exports.initiateMpesa = async (req, res) => {
   try {
     const { invoiceId, phoneNumber } = req.body;
@@ -69,77 +90,107 @@ exports.initiateMpesa = async (req, res) => {
       return res.status(400).json({ error: 'Valor da fatura inválido para pagamento' });
     }
 
-    // Gera refs seguros e curtos
-    const thirdPartyRef = makeThirdPartyRef(invoice._id);   // <=20 chars (determinístico)
-    const transactionRef = makeTransactionRef();            // <=20 chars
+    // Prepara tentativas: tentamos até maxRetries (1 retry extra)
+    const attempts = [];
+    const maxAttempts = 2;
+    let lastResponse = null;
+    let usedThirdRef = null;
+    let usedProviderTxId = null;
 
-    // Prepara payload conforme docs (C2B singleStage)
-    const payload = {
-      input_TransactionReference: transactionRef,
-      input_CustomerMSISDN: phone,
-      input_Amount: String(amount),                 // string numérica sem "MZN"
-      input_ThirdPartyReference: thirdPartyRef,
-      input_ServiceProviderCode: mpesaConfig.serviceProviderCode,
-      input_Country: "MOZ",
-      input_Currency: "MZN"
-    };
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // gera refs únicos a cada tentativa
+      const thirdPartyRef = generateThirdPartyRef(invoice._id, 4); // ex.: first16 + 4chars
+      const transactionRef = makeTransactionRef();
 
-    // Guarda payload no audit (opcional) para debug
+      // payload formatado (mantemos names que a Vodacom espera)
+      const sentPayload = {
+        input_TransactionReference: transactionRef,
+        input_CustomerMSISDN: phone,
+        input_Amount: String(amount),
+        input_ThirdPartyReference: thirdPartyRef,
+        input_ServiceProviderCode: mpesaConfig.serviceProviderCode,
+        input_Country: "MOZ",
+        input_Currency: "MZN"
+      };
+
+      // tenta enviar (usamos tx.c2b — a implementação interna pode mapear nomes)
+      let response;
+      try {
+        // se a sua Transaction.c2b precisa de outro shape (sem "input_"),
+        // a lib Transaction fará o mapeamento. Passamos também a versão simplificada
+        response = await tx.c2b({
+          value: amount,
+          client_number: phone,
+          agent_id: mpesaConfig.serviceProviderCode,
+          transaction_reference: transactionRef,
+          third_party_reference: thirdPartyRef
+        });
+      } catch (errTx) {
+        // se a lib lança, tentamos obter errTx.response.data, senão montamos objecto
+        console.error('tx.c2b threw:', errTx?.response?.data || errTx?.message || errTx);
+        response = errTx?.response?.data || { error: errTx?.message || 'Erro na chamada ao provedor' };
+      }
+
+      // Guarda tentativa no array para devolver ao frontend
+      attempts.push({ attempt, thirdPartyRef, transactionRef, sentPayload, response });
+
+      // grava um Payment para esta tentativa (reference = thirdPartyRef)
+      try {
+        await Payment.create({
+          invoice: invoice._id,
+          method: 'mpesa',
+          amount: invoice.total,
+          reference: thirdPartyRef,
+          providerTransactionId: response?.output_TransactionID || null,
+          metadata: response
+        });
+      } catch (pmErr) {
+        console.warn('Falha ao criar Payment tentativa (não fatal):', pmErr?.message || pmErr);
+      }
+
+      // marca alguns campos rastreio na invoice (não finalizamos ainda; esperamos callback)
+      if (response?.output_TransactionID) {
+        usedProviderTxId = response.output_TransactionID;
+        invoice.transactionId = usedProviderTxId;
+      }
+      invoice.status = 'pendente';
+      invoice.paymentMethod = 'mpesa';
+      await invoice.save();
+
+      lastResponse = response;
+      usedThirdRef = thirdPartyRef;
+
+      // se resposta não indica duplicate → break (sucesso ou outro código)
+      if (!isDuplicateResponse(response)) {
+        break;
+      }
+
+      // se é duplicate e ainda temos tentativas, vamos retryar (loop continua)
+      console.warn(`Attempt ${attempt} recebeu Duplicate; will ${attempt < maxAttempts ? 'retry' : 'stop'}.`);
+      // pequena pausa antes do retry (opcional; aqui não bloqueamos o event loop com sleep)
+    }
+
+    // Registos audit (opcional, inclui attempts)
     try {
       await Audit.create({
         user: req.user?.id || null,
         rota: '/api/payments/mpesa',
-        metodo: 'initiateMpesa_sentPayload',
-        params: payload
+        metodo: 'initiateMpesa',
+        params: {
+          invoiceId,
+          phoneNumber: phone,
+          attemptsSummary: attempts.map(a => ({ attempt: a.attempt, thirdPartyRef: a.thirdPartyRef, responseCode: a.response?.output_ResponseCode }))
+        }
       });
     } catch (aErr) {
-      // não é fatal
       console.warn('Audit create falhou (não fatal):', aErr?.message || aErr);
     }
 
-    // Faz a chamada ao provedor
-    let response;
-    try {
-      // NOTE: a implementação do tx.c2b pode esperar nomes diferentes
-      // Adaptámos o payload ao formato de exemplo do mpesa library
-      // Se a tua Transaction.c2b usa nomes sem "input_" ajusta aqui conforme necessário.
-      response = await tx.c2b({
-        value: amount,
-        client_number: phone,
-        agent_id: mpesaConfig.serviceProviderCode,
-        transaction_reference: transactionRef,
-        third_party_reference: thirdPartyRef
-      });
-    } catch (errTx) {
-      console.error('tx.c2b threw:', errTx?.response?.data || errTx?.message || errTx);
-      response = errTx?.response?.data || { error: errTx?.message || 'Erro na chamada ao provedor' };
-    }
-
-    // Log e gravação do Payment inicial (usando a referência curta)
-    try {
-      await Payment.create({
-        invoice: invoice._id,
-        method: 'mpesa',
-        amount: invoice.total,
-        reference: thirdPartyRef,        // mapping: usamos a ref curta como "reference"
-        providerTransactionId: response?.output_TransactionID || null,
-        metadata: response
-      });
-    } catch (pmErr) {
-      console.warn('Falha ao criar Payment inicial (não fatal):', pmErr?.message || pmErr);
-    }
-
-    // marca invoice pendente
-    invoice.status = 'pendente';
-    if (response?.output_TransactionID) invoice.transactionId = response.output_TransactionID;
-    invoice.paymentMethod = 'mpesa';
-    await invoice.save();
-
-    // devolve ao frontend o raw da operadora e o payload enviado
+    // devolve ao frontend: última resposta 'raw' + todas tentativas (sentPayloads)
     return res.json({
       message: 'Pedido enviado à operadora. Confirme no seu telemóvel.',
-      raw: response,
-      sentPayload: payload
+      raw: lastResponse,
+      attempts
     });
 
   } catch (err) {
@@ -152,7 +203,7 @@ exports.initiateMpesa = async (req, res) => {
   }
 };
 
-/* Controller: callback público que a Vodacom chama */
+/* Callback mantém a mesma lógica (procura Payment.reference que corresponde ao thirdPartyRef) */
 exports.mpesaCallback = async (req, res) => {
   try {
     const body = req.body || {};
