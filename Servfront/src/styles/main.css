@@ -215,17 +215,77 @@ body {
 .copyright a:hover {
   text-decoration: underline;
 }
-/* botão imagem M-Pesa */
-.mpesa-btn img {
-  height: 36px;
-  width: auto;
-  display: inline-block;
-  vertical-align: middle;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12));
+/* Payment panel styling */
+.payment-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  border: 1px solid #dbeefc;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 
-.mpesa-btn[disabled] img {
-  opacity: 0.5;
-  cursor: default;
-  filter: none;
+.payment-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.payment-label {
+  min-width: 70px;
+  font-weight: 600;
+  color: #004d80;
+}
+
+.payment-prefix {
+  width: 70px;
+  padding: 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #cfe9ff;
+  background: #eef8ff;
+  text-align: center;
+}
+
+.payment-local {
+  width: 180px;
+  padding: 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #cfe9ff;
+}
+
+.mpesa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(180deg, #006db3 0%, #00579a 100%);
+  color: white;
+  border: none;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.mpesa-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mpesa-logo {
+  width: 26px;
+  height: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Cancel button */
+.btn-cancel {
+  background: none;
+  border: 1px solid #ccc;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 0.25rem;
 }
