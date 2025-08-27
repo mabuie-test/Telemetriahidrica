@@ -1,3 +1,4 @@
+// frontend/src/services/api.js
 import axios from 'axios';
 
 const API = axios.create({
@@ -12,53 +13,59 @@ API.interceptors.request.use(cfg => {
 });
 
 // — Autenticação
-export const login      = creds => API.post('/auth/login', creds);
+export const login = creds => API.post('/auth/login', creds);
 
 // — Users
-export const getProfile = ()   => API.get('/users/me');
-export const listUsers  = ()   => API.get('/users');
-export const getUser    = id   => API.get(`/users/${id}`);
+export const getProfile = () => API.get('/users/me');
+export const listUsers = () => API.get('/users');
+export const getUser = id => API.get(`/users/${id}`);
 export const createUser = data => API.post('/users', data);
-export const updateUser = (id,data) => API.put(`/users/${id}`, data);
-export const deleteUser = id   => API.delete(`/users/${id}`);
+export const updateUser = (id, data) => API.put(`/users/${id}`, data);
+export const deleteUser = id => API.delete(`/users/${id}`);
 
 // — Medidores
-export const listMedidores   = ()        => API.get('/medidores');
-export const getMedidor      = id        => API.get(`/medidores/${id}`);
-export const createMedidor   = data      => API.post('/medidores', data);
-export const updateMedidor   = (id,data) => API.put(`/medidores/${id}`, data);
-export const deleteMedidor   = id        => API.delete(`/medidores/${id}`);
+export const listMedidores = () => API.get('/medidores');
+export const getMedidor = id => API.get(`/medidores/${id}`);
+export const createMedidor = data => API.post('/medidores', data);
+export const updateMedidor = (id, data) => API.put(`/medidores/${id}`, data);
+export const deleteMedidor = id => API.delete(`/medidores/${id}`);
 
 // — Leituras
-export const listLeituras    = ()        => API.get('/leituras');
-export const createLeitura   = data      => API.post('/leituras', data);
+export const listLeituras = () => API.get('/leituras');
+export const createLeitura = data => API.post('/leituras', data);
 
 // — Falhas & Alertas
-export const listFalhas      = ()        => API.get('/falhas');
-export const listAlertas     = ()        => API.get('/alertas');
+export const listFalhas = () => API.get('/falhas');
+export const listAlertas = () => API.get('/alertas');
 
 // — Relatórios
-export const getRelatorioDiario   = params => API.get('/relatorios/diario', { params });
-export const getRelatorioSemanal  = params => API.get('/relatorios/semanal', { params });
-export const getRelatorioMensal   = params => API.get('/relatorios/mensal', { params });
+export const getRelatorioDiario = params => API.get('/relatorios/diario', { params });
+export const getRelatorioSemanal = params => API.get('/relatorios/semanal', { params });
+export const getRelatorioMensal = params => API.get('/relatorios/mensal', { params });
 export const getRelatorioClientes = params => API.get('/relatorios/consumo-clientes', { params });
 
 // — Contabilidade
-export const getBillingParams       = ()         => API.get('/contabilidade/params');
-export const setBillingParams       = data       => API.patch('/contabilidade/params', data);
-export const bulkGenerateInvoices   = params     => API.post('/contabilidade/bulk', null, { params });
-export const listAllInvoices        = params     => API.get('/contabilidade/all', { params });
-export const listClientInvoices     = ()         => API.get('/contabilidade/client');
-export const payInvoice             = (id, method) =>
+export const getBillingParams = () => API.get('/contabilidade/params');
+export const setBillingParams = data => API.patch('/contabilidade/params', data);
+export const bulkGenerateInvoices = params => API.post('/contabilidade/bulk', null, { params });
+export const listAllInvoices = params => API.get('/contabilidade/all', { params });
+export const listClientInvoices = () => API.get('/contabilidade/client');
+export const payInvoice = (id, method) =>
   API.post('/contabilidade/pay', { invoiceId: id, method });
-export const toggleSuspendMedidor   = id         =>
+export const toggleSuspendMedidor = id =>
   API.patch(`/contabilidade/medidor/${id}/suspend`);
 
 // — Auditoria
-export const listAuditLogs          = ()         => API.get('/audit');
+export const listAuditLogs = () => API.get('/audit');
 
-export default API;
-
-// pagamentos mpesa
+// — Pagamentos M-Pesa (inicia o fluxo STK / USSD)
+// Chamada principal (mantém a interface simples)
 export const payInvoiceMpesa = (invoiceId, phoneNumber) =>
   API.post('/payments/mpesa', { invoiceId, phoneNumber });
+
+// Alias compatível com muitos componentes
+export const initiateMpesa = (invoiceId, phoneNumber) =>
+  payInvoiceMpesa(invoiceId, phoneNumber);
+
+// default export axios instance
+export default API;
