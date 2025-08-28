@@ -309,3 +309,264 @@ body {
 .payment-panel { /* ... já definido anteriormente ... */ }
 .payment-row { /* ... */ }
 .mpesa-btn { /* ... */ }
+
+
+
+/* =========================
+   Variáveis e reset leve
+   ========================= */
+
+:root{
+  --primary: #0077cc;
+  --primary-dark: #005fa3;
+  --muted: #6e7a86;
+  --bg: #f9fbfd;
+  --card-bg: #ffffff;
+  --max-width: 1200px;
+  --gap-sm: 0.75rem;
+  --gap-md: 1.25rem;
+  --radius: 8px;
+  --shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+/* Aplicar box-sizing global */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* Força background global e suaviza fontes */
+html,body{
+  height:100%;
+  background: var(--bg);
+  color: #222;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  margin:0; padding:0;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, "Helvetica Neue", Arial;
+  line-height:1.45;
+}
+
+/* =========================
+   Layout centralizado
+   ========================= */
+
+.container, .dashboard {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 1.5rem auto;
+  padding: 1.25rem;
+}
+
+/* força justificação para blocos de texto (parágrafos) */
+.dashboard p,
+.card p,
+.payment-panel p,
+.report-clientes p,
+.copyright p {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+/* =========================
+   Cards e grid responsivo
+   ========================= */
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+
+/* Layout geral das dashboards em colunas quando espaço permitir */
+@media (min-width: 900px) {
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: var(--gap-md);
+    align-items: start;
+  }
+
+  /* Utilitário: full width para seções grandes */
+  .dashboard-full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Em telas médias - duas colunas flexíveis */
+@media (min-width: 680px) and (max-width: 899px) {
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: var(--gap-md);
+  }
+}
+
+/* Em pequenos e muito pequenos - coluna única */
+@media (max-width: 679px) {
+  .dashboard { padding: 1rem; }
+  .form-inline { flex-direction: column; gap: 0.5rem; }
+  .form-inline input,
+  .form-inline select,
+  .form-inline button { width: 100%; }
+}
+
+/* =========================
+   Navbar (responsiva)
+   ========================= */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+/* Make nav-right wrap nicely */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Em mobile, empilha links e botões */
+@media (max-width: 720px) {
+  .nav-right {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .nav-right a { margin-right: 0; }
+  .navbar h1 { font-size: 1.2rem; }
+}
+
+/* =========================
+   Tabelas responsivas
+   ========================= */
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto; /* permite scroll horizontal em telas pequenas */
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-list {
+  width: 100%;
+  min-width: 680px; /* força colunas a se manterem legíveis */
+  border-collapse: collapse;
+}
+
+/* Cabeçalho fixo visual (não sticky) em telas largas */
+@media (min-width: 900px) {
+  .table-list th { position: relative; }
+}
+
+/* Cores e ajustes */
+.table-list th, .table-list td {
+  padding: 0.65rem 0.8rem;
+  vertical-align: middle;
+}
+
+/* Ações em coluna: agrupa elementos no espaço disponível */
+.table-list td:last-child {
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* Quando a tabela for rolável, reduzir min-width para telas muito pequenas */
+@media (max-width: 420px) {
+  .table-list { min-width: 520px; }
+}
+
+/* =========================
+   Formulários / inputs / botões
+   ========================= */
+
+input, select, textarea, button {
+  font: inherit;
+  border-radius: 6px;
+}
+
+input[type="text"], input[type="number"], select, textarea {
+  border: 1px solid #d6dde5;
+  padding: 0.55rem 0.75rem;
+  background: #fff;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 6px 18px rgba(0,119,204,0.08);
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  padding: 0.45rem 0.85rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s ease, transform .08s ease;
+}
+
+button:hover { background: var(--primary-dark); transform: translateY(-1px); }
+button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Botão de confirmação maior em telas pequenas */
+@media (max-width: 600px) {
+  .mpesa-btn, .btn-cancel {
+    width: 100%;
+  }
+  .payment-row { flex-direction: column; gap: 0.5rem; }
+}
+
+/* =========================
+   Painel de pagamento específico
+   ========================= */
+
+.payment-panel .payment-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-wrap: wrap;
+}
+
+.payment-prefix { width: 80px; text-align:center; background:#f1f6fb; border:1px solid #e1eef8; }
+.payment-local { width: 220px; }
+
+.payment-label { color: var(--muted); font-size: 0.95rem; min-width: 80px; }
+
+/* =========================
+   Acessibilidade / utilitários
+   ========================= */
+
+.info { background: #e8f6ff; color: #084b73; padding: 0.5rem; border-left: 4px solid var(--primary); border-radius: 4px; }
+.error { background: #ffecec; color: #8b1b1b; padding: 0.5rem; border-left: 4px solid #cc0000; border-radius: 4px; }
+
+.success { background: #e6ffe6; color: #0b6123; padding: 0.5rem; border-left: 4px solid #007700; border-radius: 4px; }
+
+/* utilitário para fazer um bloco central justificado (ex: descrições longas) */
+.center-justified {
+  margin: 0 auto;
+  max-width: 900px;
+  text-align: justify;
+}
+
+/* =========================
+   Pequenas transições e toques finais
+   ========================= */
+
+.card, .dashboard, .table-list td, .table-list th {
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+
+/* =========================
+   Nota:
+   - Para que as tabelas rolem em telas pequenas envolver o <table> com
+     um <div class="table-wrapper"> ... </div> (p.ex. em componentes).
+   - Se usa MapContainer (Leaflet) ajuste a altura dinamicamente com JS/CSS:
+     .leaflet-container { height: 320px; max-height: 60vh; width:100%; }
+   ========================= */
